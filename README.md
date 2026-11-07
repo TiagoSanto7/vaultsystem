@@ -1,14 +1,20 @@
-# Vault System
+<p align="center">
+  <img src="assets/vault-system-banner.svg" alt="Vault System — Conhecimento distribuído" width="960">
+</p>
 
-**Conhecimento distribuído.**
+<h1 align="center">Vault System</h1>
+<p align="center"><strong>Conhecimento distribuído para pessoas, agentes e ferramentas.</strong></p>
+<p align="center"><a href="#como-funciona">Como funciona</a> · <a href="#estado-do-projeto">Estado do projeto</a></p>
 
 Vault System reúne conhecimento que vive espalhado entre código, documentação e decisões de projeto. Ele relaciona essas informações com suas fontes e ajuda a levar o contexto certo para pessoas, agentes e ferramentas.
 
 ## Como funciona
 
-1. **Reunir** as fontes de um projeto em um espaço comum.
-2. **Conectar** documentos, mudanças e decisões para entender como o projeto funciona.
-3. **Distribuir** o contexto para consulta e reutilização no fluxo de trabalho.
+| Etapa | O que acontece |
+| --- | --- |
+| **01 · Reunir** | Código, documentos e decisões entram na órbita do projeto. |
+| **02 · Conectar** | As relações entre as fontes dão contexto a cada informação. |
+| **03 · Distribuir** | Pessoas, agentes e ferramentas reaproveitam esse contexto onde trabalham. |
 
 ## Estado do projeto
 
