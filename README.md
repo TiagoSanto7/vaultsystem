@@ -18,6 +18,12 @@ Vault System reúne conhecimento que vive espalhado entre código, documentaçã
 
 ## Estado do projeto
 
-Este repositório está em preparação.
+Primeira versão executável: o hub (API e tela), a VS CLI e a curadoria opcional Vault-I.
 
-A próxima etapa é incorporar a versão mais recente da base, revisar o fluxo de inicialização da CLI e trazer o planejamento do arquivo de lock. A documentação de instalação acompanha a primeira versão executável.
+| Parte | O que faz |
+| --- | --- |
+| **Hub** | Guarda os vaults, mostra as notas com origem e emite os tokens. |
+| **VS CLI** | `vs login`, `vs init` e `vs sync` ligam uma pasta de projeto a um vault. No modo documentado, as notas que o agente do projeto escreveu entram já curadas. |
+| **Vault-I** | Curadoria interna com chave de API (Claude ou OpenAI), só quando você pede. |
+
+Para rodar na sua máquina, veja [local/README.md](local/README.md). Próximos passos: o comando `vs lock` e a CLI como binário sem Python.
