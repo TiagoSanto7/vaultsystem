@@ -101,9 +101,13 @@ function VaultIPainel() {
           <label htmlFor="vi-modelo">Modelo</label>
           <input id="vi-modelo" className="mono" value={modelo} onChange={(e) => setModelo(e.target.value)} placeholder={padrao} maxLength={80} />
           <small className="muted">Vazio usa o padrão: <code>{padrao}</code>.</small>
-          <label htmlFor="vi-chave">Chave de API</label>
+          <label htmlFor="vi-chave">{provedor === "claude-code" ? "Token do claude setup-token" : "Chave de API"}</label>
           <input id="vi-chave" className="mono" type="password" autoComplete="off" value={chave} onChange={(e) => setChave(e.target.value)}
-            placeholder={dados.configurada && !trocaProvedor ? "deixe vazio para manter a chave atual" : provedor === "anthropic" ? "sk-ant-…" : "sk-…"} />
+            placeholder={dados.configurada && !trocaProvedor ? "deixe vazio para manter a chave atual"
+              : provedor === "claude-code" ? "sk-ant-oat01-…" : provedor === "anthropic" ? "sk-ant-api03-…" : "sk-…"} />
+          {provedor === "claude-code" && (
+            <small className="muted">Gere no seu terminal com <code>claude setup-token</code> (usa a sua assinatura do Claude). O hub roda a CLI oficial do Claude Code com ele.</small>
+          )}
           <small className="muted">A chave fica só no servidor do hub. A tela mostra apenas os últimos caracteres.</small>
           {falha && <div className="erro-campo" role="alert">{falha}</div>}
           <div className="modal-actions" style={{ justifyContent: "flex-start" }}>

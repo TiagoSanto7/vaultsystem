@@ -133,7 +133,7 @@ def test_vault_i_configuracao_nunca_devolve_a_chave(tela):
     cliente, _, _ = tela
     entrar(cliente)
     v = cliente.get("/v1/painel/vault-i").json()
-    assert v["configurada"] is False and [p["id"] for p in v["provedores"]] == ["anthropic", "openai"]
+    assert v["configurada"] is False and [p["id"] for p in v["provedores"]] == ["anthropic", "claude-code", "openai"]
     assert cliente.put("/v1/painel/vault-i", json={"provedor": "anthropic", "chave": ""}).status_code == 400
     assert cliente.put("/v1/painel/vault-i", json={"provedor": "outro", "chave": CHAVE_FALSA}).status_code == 400
     r = cliente.put("/v1/painel/vault-i", json={"provedor": "anthropic", "chave": CHAVE_FALSA})
@@ -300,3 +300,46 @@ def test_cli_so_com_nomes_em_ingles(tmp_path):
         assert _vs([velho], tmp_path, env).returncode == 2
     ajuda = _vs(["help"], tmp_path, env).stdout
     assert "mode=literal|documented" in ajuda and "repo connect" in ajuda and "modo=" not in ajuda
+
+
+TOKEN_SETUP = "sk-ant-oat01-" + "y" * 40
+
+
+def test_vault_i_aceita_token_do_claude_setup_token(tela, monkeypatch):
+    cliente, _, _ = tela
+    entrar(cliente)
+    assert "claude-code" in [p["id"] for p in cliente.get("/v1/painel/vault-i").json()["provedores"]]
+    # cada credencial no provedor certo
+    assert cliente.put("/v1/painel/vault-i", json={"provedor": "claude-code", "chave": CHAVE_FALSA}).status_code == 400
+    assert cliente.put("/v1/painel/vault-i", json={"provedor": "anthropic", "chave": TOKEN_SETUP}).status_code == 400
+    r = cliente.put("/v1/painel/vault-i", json={"provedor": "claude-code", "chave": TOKEN_SETUP})
+    assert r.status_code == 200 and TOKEN_SETUP not in r.text and r.json()["modelo"] == "claude-opus-5-5"
+
+    from vault_system import vault_i
+    chamadas = []
+
+    class Resultado:
+        returncode = 0
+        stderr = ""
+        stdout = json.dumps({"type": "result", "is_error": False,
+                             "result": '```json\n{"notas": [{"tipo": "regra", "titulo": "T", "origens": ["a.py"], "corpo": "x"}]}\n```'})
+
+    def run(cmd, **kw):
+        chamadas.append((cmd, kw))
+        return Resultado()
+
+    import subprocess
+    monkeypatch.setattr(subprocess, "run", run)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "nao-deve-vazar")
+    notas_ = vault_i.chamar({"provedor": "claude-code", "modelo": "claude-opus-5-5", "chave": TOKEN_SETUP}, "pedido")
+    assert notas_[0]["titulo"] == "T"
+    cmd, kw = chamadas[0]
+    assert cmd[:4] == ["claude", "-p", "--output-format", "json"] and "--disallowedTools" in cmd
+    assert kw["env"]["CLAUDE_CODE_OAUTH_TOKEN"] == TOKEN_SETUP and "ANTHROPIC_API_KEY" not in kw["env"]
+    assert kw["input"] == "pedido"
+    Resultado.stdout = json.dumps({"type": "result", "is_error": True, "result": "Invalid API key · Please run /login"})
+    try:
+        vault_i.chamar({"provedor": "claude-code", "modelo": "claude-opus-5-5", "chave": TOKEN_SETUP}, "pedido")
+        assert False
+    except RuntimeError as e:
+        assert "recusado" in str(e)
