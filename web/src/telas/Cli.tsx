@@ -58,8 +58,10 @@ export default function Cli() {
       <div className="panel-body"><ul>
         <li><code>vaultsystem</code> abre o painel no terminal.</li>
         <li><code>vs whoami</code> mostra o hub, o token e o dono do workspace.</li>
-        <li><code>vs init &lt;nome&gt;</code> aplica um pacote de inicialização do hub.</li>
-        <li><code>vs sync &lt;vault&gt; &lt;arquivo.zip&gt;</code> envia um ZIP pronto para um vault.</li>
+        <li><code>vs init package=&lt;nome&gt;</code> aplica um pacote de inicialização do hub.</li>
+        <li><code>vs sync vault=&lt;nome&gt; file=&lt;arquivo.zip&gt;</code> envia um ZIP pronto para um vault.</li>
+        <li><code>vs list templates</code> lista os templates do hub.</li>
+        <li><code>vs connect repo &lt;url-ssh&gt;</code> liga a pasta a um repositório Git (opcional).</li>
         <li><code>vs add template &lt;tipo:nome&gt;</code> aplica os arquivos na pasta atual. Use <code>--dry-run</code> para simular.</li>
       </ul></div>
     </section>
@@ -76,7 +78,7 @@ export default function Cli() {
           <p>{t.descricao || "Pacote publicado no hub."} · {t.arquivos} arquivo(s) · <code>{t.commit.slice(0, 12)}</code></p>
           {aberto === t.id && <>
             <Link to={`/sistemas/${encodeURIComponent(t.vault)}`}>Vault de origem</Link>
-            {t.bloqueado ? <p>{t.bloqueado}</p> : <p><code>{t.tipo === "init" ? `vs init ${t.nome}` : `vs add template ${t.id}`}</code></p>}
+            {t.bloqueado ? <p>{t.bloqueado}</p> : <p><code>{t.tipo === "init" ? `vs init package=${t.nome}` : `vs add template ${t.id}`}</code></p>}
             <Arquivos template={t} />
           </>}
         </article>)}

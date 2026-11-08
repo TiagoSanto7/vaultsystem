@@ -103,7 +103,7 @@ com a verificação feita pelo código.
 
 `vs sync --dry-run` lista o que iria e marca com `*` as notas do agente.
 
-Um ZIP pronto também pode ir direto: `vs sync <vault> <arquivo.zip>
+Um ZIP pronto também pode ir direto: `vs sync vault=<vault> file=<arquivo.zip>
 mode=documented`.
 
 ## Templates
@@ -112,7 +112,7 @@ Um template é uma pasta de um vault `template-<tipo>`. `design:default` é a
 pasta `default/` do vault `template-design`.
 
 ```
-vs templates
+vs list templates
 vs add template design:default
 vs add template design:default dir=interface --dry-run
 ```
@@ -137,20 +137,25 @@ são refeitas a cada pedido; as notas do agente do projeto têm prioridade.
 
 ## Todos os comandos
 
+Todo comando segue um padrão só: `vs <verbo> [objeto] [chave=valor ...] [--flag ...]`, tudo em inglês.
+
 ```
-vs login [url=<hub>]               conecta ao hub com o token de conexão
-vs logout                          apaga o token guardado
-vs whoami                          hub, token e dono do workspace
-vs init vault=<nome> [mode=<m>]    liga a pasta a um vault
-vs init template=<tipo>           liga a pasta ao vault template-<tipo>
-vs sync [--dry-run]                envia a pasta ao vault do .vs
-vs sync vault=<nome>               soma esta pasta a um vault (o resto fica)
-vs sync template=<tipo> [name=<n>] soma esta pasta como um template
-vs sync <vault> <zip> [mode=…]     envia um ZIP pronto
-vs templates [tipo]                lista os templates
-vs add template <tipo:nome>        aplica um template na pasta
-vs version                         esta versão e a do hub
-vs help                            ajuda
+vs login [url=<hub>]                    conecta ao hub com o token de conexão
+vs logout                               apaga o token guardado
+vs whoami                               hub, token e dono do workspace
+vs init                                 prepara a pasta, sem ligar a um vault
+vs init vault=<nome>                    prepara e liga a um vault
+vs init template=<tipo>                 prepara e liga a template-<tipo>
+vs sync                                 envia a pasta ao vault do .vs
+vs sync vault=<nome>                    soma a pasta a um vault
+vs sync template=<tipo> [name=<n>]      soma a pasta como um template
+vs list templates [type=<tipo>]         lista os templates do hub
+vs add template <tipo:nome>             aplica um template na pasta
+vs connect repo <url-ssh>               liga a pasta a um repositório Git
+vs version | vs update | vs help        versão, atualização e ajuda
+vaultsystem                             painel de boas-vindas
 ```
 
-Todo comando aceita `--json`, para script e agente.
+Parâmetros: `mode=literal|documented`, `package=<nome>` (init), `name=<template>` e
+`file=<zip>` (sync), `dir=<pasta>` (todos). Flags: `--dry-run`, `--curate` (sync),
+`--force` (init e add template), `--json` (todos).

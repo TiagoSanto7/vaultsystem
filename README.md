@@ -51,26 +51,25 @@ The **hub** is your workspace server: it stores the vaults, shows the notes and 
 
 ### Commands
 
+Every command follows one pattern: `vs <verb> [object] [key=value ...] [--flag ...]`, all in English. The full reference, with every parameter and the renamed commands, is in [docs/commands.md](docs/commands.md).
+
 | Command | What it does |
 | --- | --- |
-| `vs login [url=<address>]` | Connects to the hub with your connection token. |
-| `vs logout` | Removes the saved token. |
-| `vs whoami` | Shows the hub, the token and the workspace owner. |
-| `vs init vault=<name> [mode=literal\|documented]` | Links this folder to a vault: writes `.vs`, `AGENTS.md` and `VS.lock`. |
-| `vs init template=<type> [mode=literal\|documented]` | Links this folder to the `template-<type>` vault; each subfolder is a template. |
-| `vs sync [--dry-run] [--curate]` | Packages this folder and sends it to the vault in `.vs`. |
-| `vs init` | Prepares this folder (`AGENTS.md`, `.vs`) without linking it to any vault. |
-| `vs sync vault=<name>` | Adds this folder to that vault; content sent by other folders stays. |
-| `vs sync template=<type> [name=<template>]` | Adds this folder to `template-<type>` as one template (default name: the folder's name). |
-| `vs sync <vault> <file.zip> [mode=literal\|documented]` | Sends a ready-made ZIP to a vault. |
-| `vs templates [type]` | Lists the templates on the hub. |
-| `vs add template <type:name> [dir=<folder>] [--dry-run] [--force]` | Applies a template to the current folder. |
-| `vs repo connect <ssh-url>` | Initializes Git and adds the `vault` remote. |
-| `vs version` / `vs update` | Shows the version / downloads the latest CLI from the hub. |
-| `vs help` | Lists all commands. |
+| `vs login [url=<hub>]` | Connects to a hub with a connection token. |
+| `vs logout` / `vs whoami` | Removes the saved token / shows the hub, the token and the owner. |
+| `vs init` | Prepares this folder (`AGENTS.md`, `.vs`, `VS.lock`) without linking it to a vault. |
+| `vs init vault=<name>` | Same, and links the folder to a vault (default `mode=documented`). |
+| `vs init template=<type>` | Same, and links it to `template-<type>`; each subfolder is a template (default `mode=literal`). |
+| `vs sync` | Sends this folder to the vault linked in `.vs`. |
+| `vs sync vault=<name>` | Adds this folder to a vault; what other folders sent stays. |
+| `vs sync template=<type> [name=<template>]` | Adds this folder to `template-<type>` as one template. |
+| `vs list templates [type=<type>]` | Lists the templates on the hub. |
+| `vs add template <type:name>` | Applies a template to this folder. |
+| `vs connect repo <ssh-url>` | Initializes Git and adds the `vault` remote (optional). |
+| `vs version` / `vs update` / `vs help` | Version / latest CLI from the hub / all commands. |
 | `vaultsystem` | Opens the welcome panel. |
 
-Every command accepts `--json` (output for scripts and agents).
+Flags: `--dry-run` (only show), `--curate` (ask Vault-I, on `sync`), `--force` (overwrite, on `init` and `add template`), `--json` (on every command).
 
 ## Access
 

@@ -81,6 +81,6 @@ if ($env:VS_NO_PATH -ne '1') {
 Write-Host ''
 Write-Host 'VS CLI instalada.' -ForegroundColor Cyan
 Write-Host "  vs login          conecta ao hub $Hub (cole o token de conexão da aba Tokens)"
-Write-Host '  vs init vault=<nome>, depois vs sync'
+Write-Host '  vs init vault=<name>, then vs sync'
 Write-Host '  vaultsystem       o painel de boas-vindas'
 Write-Host 'Abra um terminal novo se o comando vs ainda não for encontrado.'

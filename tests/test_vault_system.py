@@ -299,7 +299,7 @@ def test_cli_so_com_nomes_em_ingles(tmp_path):
     for velho in ("versao", "ajuda"):
         assert _vs([velho], tmp_path, env).returncode == 2
     ajuda = _vs(["help"], tmp_path, env).stdout
-    assert "mode=literal|documented" in ajuda and "repo connect" in ajuda and "modo=" not in ajuda
+    assert "mode=literal|documented" in ajuda and "connect repo" in ajuda and "modo=" not in ajuda
 
 
 TOKEN_SETUP = "sk-ant-oat01-" + "y" * 40
@@ -429,3 +429,18 @@ def test_vs_sync_template_de_outra_pasta_vira_um_template(tmp_path):
     assert "posts-instagram/docs/como.md" in plano["arquivos"]
     plano = json.loads(_vs(["sync", "template=design", "name=instagram", "--dry-run", "--json"], pasta, env).stdout)
     assert plano["origin"] == "instagram" and "instagram/docs/como.md" in plano["arquivos"]
+
+
+
+def test_comandos_antigos_avisam_o_nome_novo(tmp_path):
+    env = {**os.environ, "VS_CLI": "1", "XDG_CONFIG_HOME": str(tmp_path / "cfg"), "VS_URL": "", "PYTHONUTF8": "1"}
+    env.pop("VS_TOKEN", None)
+    casos = {("templates",): "list templates", ("repo", "connect", "git@x:y.git"): "connect repo",
+             ("init", "vault", "a"): "init vault=a", ("init", "pacote"): "init package=pacote",
+             ("sync", "vault", "a"): "sync vault=a", ("sync", "a", "b.zip"): "sync vault=a file=b.zip"}
+    for args, novo in casos.items():
+        r = _vs(list(args), tmp_path, env)
+        assert r.returncode == 1 and novo in r.stderr, (args, r.stderr)
+    ajuda = _vs(["help"], tmp_path, env).stdout
+    for cmd in ("vs list templates", "vs connect repo", "vs init template=<type>", "vs sync vault=<name>", "file=<zip>"):
+        assert cmd in ajuda
