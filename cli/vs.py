@@ -1,37 +1,37 @@
 #!/usr/bin/env python3
-"""vs: a linha de comando do Vault System.
+"""vs: the Vault System command line.
 
-Um arquivo só, com a biblioteca padrão do Python (3.8 ou mais novo). Instalar:
+A single file using only the Python standard library (3.8 or newer). Install:
 
     Windows:              irm <hub>/v1/cli/install.ps1 | iex
-    Linux, macOS e WSL:   curl -fsSL <hub>/v1/cli/install.sh | sh
+    Linux, macOS, WSL:    curl -fsSL <hub>/v1/cli/install.sh | sh
 
-Comandos:
+Commands:
 
-    vs login [url=<endereço>]          conecta ao hub com o token de conexão (pergunta sem eco)
-    vs logout                          apaga o token guardado
-    vs whoami                          o hub, o token e o dono do workspace
-    vs templates [tipo]                lista os templates (de um tipo ou todos)
-    vs init [nome]                     prepara a pasta: AGENTS.md, .vs (vínculo com o hub) e VS.lock
-        vault=<nome>                   o vault desta pasta no hub (padrão: o nome da pasta)
-        mode=literal|documented        padrão: documented (vault template-*: literal)
-    vs sync                            empacota a pasta e envia ao vault do .vs (cria no 1º envio)
-        --dry-run                      só lista o que iria
-        --curate                       pede a curadoria do Vault-I (precisa de chave de API no hub)
-    vs sync <vault> <arquivo.zip>       envia um ZIP pronto para o vault
-        mode=literal|documented       cria o vault ao enviar o primeiro snapshot
-    vs add template <tipo:nome>        baixa o template na pasta atual
-        dir=<pasta>                    noutra pasta
-        --dry-run                      só mostra o que faria
-        --force                        sobrescreve o que já existe
-    vs repo connect <url-ssh>          inicializa o Git e configura o remoto vault
-    vs version                         esta versão e a do servidor
-    vs update                          baixa do hub a versão mais nova da CLI
-    vs welcome                         o painel de boas-vindas (o comando vaultsystem)
-    vs help                            este texto
+    vs login [url=<address>]           connect to the hub with your connection token (asked without echo)
+    vs logout                          remove the saved token
+    vs whoami                          show the hub, the token and the workspace owner
+    vs templates [type]                list templates (one type or all)
+    vs init [name]                     prepare this folder: AGENTS.md, .vs (link to the hub) and VS.lock
+        vault=<name>                   the vault for this folder (default: the folder name)
+        mode=literal|documented        default: documented (template-* vaults: literal)
+    vs sync                            package this folder and send it to the vault in .vs (creates it on first sync)
+        --dry-run                      only list what would be sent
+        --curate                       ask Vault-I to curate (needs an API key on the hub)
+    vs sync <vault> <file.zip>         send a ready-made ZIP to a vault
+        mode=literal|documented        creates the vault on the first snapshot
+    vs add template <type:name>        apply a template to the current folder
+        dir=<folder>                   into another folder
+        --dry-run                      only show what would be done
+        --force                        overwrite existing files
+    vs repo connect <ssh-url>          initialize Git and add the vault remote
+    vs version                         this version and the hub's
+    vs update                          download the latest CLI from the hub
+    vs welcome                         the welcome panel (the vaultsystem command)
+    vs help                            this text
 
-Todo comando aceita --json (saída para script e agente). VS_TOKEN e VS_URL no
-ambiente têm prioridade sobre ~/.config/vaultsystem/config.json.
+Every command accepts --json (output for scripts and agents). VS_TOKEN and VS_URL in
+the environment take precedence over ~/.config/vaultsystem/config.json.
 """
 import datetime
 import getpass
@@ -727,7 +727,7 @@ def cmd_welcome(pos, params, flags):
 
 
 def cmd_ajuda(pos, params, flags):
-    ajuda = __doc__.split("Comandos:\n", 1)[1].strip()
+    ajuda = __doc__.split("Commands:\n", 1)[1].strip()
     print(ajuda)
 
 
