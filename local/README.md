@@ -33,14 +33,12 @@ design system do Vault System, com 9 notas). Nessa pasta, rode
 `vs init vault=template-design` e `vs sync`; depois, em outra pasta,
 `vs add template design:default`.
 
-## Curadoria interna
+## Curadoria interna (Vault-I)
 
-Sem chave de API, não há curadoria no hub e isso não é erro: o vault fica com a
-cópia literal e as notas do agente, e o botão "Curar no hub" não aparece. O
-padrão previsto é uma chave de API (`VAULT_CURADORIA_PROVEDOR` = openai,
-anthropic ou gemini, com `VAULT_CURADORIA_CHAVE`), ainda sem curador
-implementado. Hoje só roda o curador Hermes herdado do Vault System, com
-`VAULT_CLAUDE_CODE_OAUTH_TOKEN`.
+A chave de API (Claude ou OpenAI) é configurada no painel, em Configurações. Sem
+ela não há curadoria no hub, e isso não é erro: o vault fica com os arquivos e as
+notas do agente. A curadoria nunca roda sozinha: só pelo botão "Curar com
+Vault-I" de um vault ou com `vs sync --curate`.
 
 ## Parar e limpar
 
