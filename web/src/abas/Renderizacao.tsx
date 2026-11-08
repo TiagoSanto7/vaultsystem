@@ -190,7 +190,7 @@ function Visualizar({ tag, pagina, extras, largura, mudarLargura }: {
       {r && (
         <div className="panel-body" style={{ paddingTop: 12 }}>
           <small>
-            Isolada: a página roda sem acesso à sessão nem à API do PetroVault.{" "}
+            Isolada: a página roda sem acesso à sessão nem à API do hub.{" "}
           </small>
           {r.usados.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>

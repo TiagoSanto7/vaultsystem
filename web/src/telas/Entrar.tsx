@@ -10,10 +10,10 @@ export function Entrada({ children, luz = false }: { children: ReactNode; luz?: 
     <div className={`entry-shell ${luz ? "com-luz" : ""}`}>
       <header className="entry-header">
         <div className="entry-brand">
-          <img src="/simbolo.png" alt="" />
+          <img src="/simbolo.svg" alt="" />
           <div>
-            PetroVault
-            <small>Uma plataforma Petrovina</small>
+            Vault System
+            <small>Conhecimento distribuído.</small>
           </div>
         </div>
         <button className="icon-btn" onClick={alternar} aria-label={tema === "escuro" ? "Usar tema claro" : "Usar tema escuro"}>
@@ -22,7 +22,7 @@ export function Entrada({ children, luz = false }: { children: ReactNode; luz?: 
       </header>
       {children}
       <footer className="entry-footer">
-        <span>Petrovina · Conhecimento corporativo</span>
+        <span>Vault System · Conhecimento distribuído.</span>
       </footer>
     </div>
   );
@@ -59,25 +59,25 @@ export default function Entrar() {
     <Entrada>
       <div className="entry-grid">
         <section className="entry-story">
-          <div className="eyebrow">Conhecimento que permanece</div>
+          <div className="eyebrow">Conhecimento orbital</div>
           <h1>
-            Seus sistemas.
+            Seus projetos.
             <br />
-            Seu conhecimento.
+            Seu contexto.
             <br />
-            <span>Um só lugar.</span>
+            <span>Conhecimento distribuído.</span>
           </h1>
-          <p>Transforme código e documentação em respostas com contexto e origem.</p>
+          <p>Arquivos e contexto com origem, para pessoas, agentes e ferramentas reutilizarem onde trabalham.</p>
           <div className="entry-flow" aria-hidden>
-            <span><Icone nome="git" />Fontes</span>
+            <span><Icone nome="git" />Reunir</span>
             <i />
-            <span><Icone nome="book" />Conhecimento</span>
+            <span><Icone nome="book" />Conectar</span>
             <i />
-            <span><Icone nome="spark" />Respostas</span>
+            <span><Icone nome="spark" />Distribuir</span>
           </div>
         </section>
         <section className="entry-card" aria-labelledby="titulo-entrar">
-          <h2 id="titulo-entrar">Bem-vindo ao PetroVault.</h2>
+          <h2 id="titulo-entrar">Bem-vindo ao Vault System.</h2>
           <p>Entre com a sua conta do hub.</p>
 
           <form className="entry-ad" onSubmit={enviar} noValidate>

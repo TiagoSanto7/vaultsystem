@@ -443,7 +443,7 @@ function EditarOrigem({ tag, origem, fechar, feito }: { tag: string; origem: Ori
   return (
     <Modal titulo={`Editar a origem ${origem.nome}`} aoFechar={fechar} largura={760}>
       <p>
-        Cada arquivo vai para a <b>primeira</b> leitura que o aceita. Ao salvar, o PetroVault pede um pull e ajusta o vault:
+        Cada arquivo vai para a <b>primeira</b> leitura que o aceita. Ao salvar, o hub pede um pull e ajusta o vault:
         o que saiu das leituras sai do vault, o que entrou é lido, e o que mudou de leitura (por exemplo, de código para
         documentos) sai de uma e é lido de novo na outra.
       </p>

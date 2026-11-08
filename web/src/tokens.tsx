@@ -123,7 +123,7 @@ function TokenCriado({ chave, vaults, fechar }: { chave: string; vaults: string[
     <Modal titulo="Token criado" aoFechar={fechar} largura={640}>
       <div className="banner warn" style={{ marginTop: 14 }}>
         <Icone nome="lock" />
-        <span>Esta é a única vez em que o token aparece. Guarde-o agora (no <code>.env</code> da aplicação, por exemplo); o PetroVault só guarda o hash.</span>
+        <span>Esta é a única vez em que o token aparece. Guarde-o agora (no <code>.env</code> da aplicação, por exemplo); o hub só guarda o hash.</span>
       </div>
       <Copiavel id="chave-nova" texto={chave} rotulo="Token" />
       <p style={{ margin: "18px 0 0" }}>Lê {vaults.length === 1 ? "o vault" : `${vaults.length} vaults`}: <b>{vaults.join(", ")}</b>. Em cada consulta, o <code>system_id</code> diz qual deles.</p>

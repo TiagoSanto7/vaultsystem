@@ -81,7 +81,7 @@ export default function VisaoGeral({ s, recarregar }: { s: Sistema; recarregar: 
         <div className="panel-head">
           <div>
             <h2>Remover vault</h2>
-            <small>Tira o vault do PetroVault: apaga a pasta da tag no vault, o clone e o cadastro. Os repositórios no GitHub não são tocados.</small>
+            <small>Tira o vault do hub: apaga a pasta do vault, o clone e o cadastro. As origens (pasta enviada ou repositório Git) não são tocadas.</small>
           </div>
           <button className="btn danger" onClick={() => setRemover(true)} disabled={!!s.removido_em}>
             {s.removido_em ? "Remoção pedida" : "Remover…"}

@@ -9,7 +9,7 @@ import { useTema } from "./tema";
 
 function Migalhas() {
   const partes = useLocation().pathname.split("/").filter(Boolean);
-  const itens: { rotulo: string; para?: string }[] = [{ rotulo: "PetroVault", para: "/" }];
+  const itens: { rotulo: string; para?: string }[] = [{ rotulo: "Vault System", para: "/" }];
   if (partes[0] === "sistemas") {
     itens.push({ rotulo: "Vaults", para: "/sistemas" });
     if (partes[1] === "novo") itens.push({ rotulo: "Novo vault" });
@@ -102,8 +102,8 @@ export default function Layout() {
       <a href="#conteudo" className="visually-hidden">Ir para o conteúdo</a>
       <aside className="sidebar" aria-label="Menu principal">
         <Link to="/" className="brand">
-          <img src="/simbolo.png" alt="" />
-          <span>PetroVault<b className="ponto" aria-hidden>.</b></span>
+          <img src="/simbolo.svg" alt="" />
+          <span>Vault System<b className="ponto" aria-hidden>.</b></span>
         </Link>
         <div className="navlabel">Workspace</div>
         <NavLink to="/" end className="nav" title="Início">
@@ -125,10 +125,10 @@ export default function Layout() {
         </NavLink>
         <div className="sidebar-bottom">
           <div className="workspace">
-            <img src="/simbolo.png" alt="" />
+            <img src="/simbolo.svg" alt="" />
             <div>
-              <b>Petrovina</b>
-              <small>Conhecimento corporativo</small>
+              <b>{eu?.nome ? `Workspace de ${eu.nome}` : "Workspace"}</b>
+              <small>Conhecimento distribuído.</small>
             </div>
           </div>
           <NavLink to="/docs" className="nav" title="Docs">
@@ -155,7 +155,7 @@ export default function Layout() {
         <main id="conteudo">
           <Outlet />
           <footer className="foot">
-            <span>PetroVault · Conhecimento com origem</span>
+            <span>Vault System · Conhecimento distribuído.</span>
             <span>Horários em Cuiabá</span>
           </footer>
         </main>

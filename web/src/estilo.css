@@ -1,32 +1,37 @@
-/* Visual do protótipo aprovado (docs/execucao/prototipo) com a identidade
-   Petrovina (DESIGN_PACKAGE.md). Contraste dos pares de texto medido nos dois
+/* Visual do protótipo aprovado (docs/execucao/prototipo) com a identidade do
+   Vault System: azul orbital (#0758ed), neutros azulados e Ubuntu. A variável
+   --green ficou com o nome antigo e guarda o azul de destaque da marca. Contraste dos pares de texto medido nos dois
    temas: todos >= 4,5:1 (WCAG AA). Não usar opacidade em texto. */
 :root {
-  --bg: #f7f8fa;
+  --bg: #f6f9ff;
   --surface: #ffffff;
-  --soft: #f2f5f4;
-  --text: #202b29;
-  --muted: #5c6965;
-  --line: #e2e8e4;
-  --green: #007800;
-  --tint: #e8f3ea;
+  --soft: #f3f7ff;
+  --text: #101e39;
+  --muted: #485b7b;
+  --line: #dce7fa;
+  --green: #0758ed;
+  --tint: #eaf2ff;
+  --solido: #0758ed;
+  --solido-hover: #0345bb;
   --amber: #8a5a0b;
   --red: #b42318;
-  --shadow: 0 12px 35px #152b2210;
+  --shadow: 0 12px 35px #0758ed14;
   --side: 238px;
   --serie-documentos: #2a78d6;
   --serie-codigo: #eb6834;
   color-scheme: light;
 }
 :root[data-tema="escuro"] {
-  --bg: #252a2e;
-  --surface: #2d3136;
-  --soft: #343a40;
-  --text: #edf3ef;
-  --muted: #b0b3b8;
-  --line: #454d55;
-  --green: #7ed087;
-  --tint: #2f4434;
+  --bg: #0b1630;
+  --surface: #101e39;
+  --soft: #16284a;
+  --text: #eaf2ff;
+  --muted: #bdcce7;
+  --line: #2a4066;
+  --green: #82baff;
+  --tint: #1b3566;
+  --solido: #0758ed;
+  --solido-hover: #2f74f0;
   --amber: #e4ba72;
   --red: #ff9b9b;
   --shadow: 0 12px 35px #0003;
@@ -107,8 +112,8 @@ main { max-width: 1490px; margin: auto; padding: 37px 42px 28px; }
 /* --- botões, selos, painéis ----------------------------------------------- */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 15px; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; font-size: 13px; font-weight: 500; white-space: nowrap; text-decoration: none; }
 .btn:hover:not(:disabled) { background: var(--soft); box-shadow: 0 3px 8px #00000008; }
-.btn.primary { background: #007800; color: #fff; border-color: #007800; }
-.btn.primary:hover:not(:disabled) { background: #006600; }
+.btn.primary { background: var(--solido); color: #fff; border-color: var(--solido); }
+.btn.primary:hover:not(:disabled) { background: var(--solido-hover); border-color: var(--solido-hover); }
 .btn.danger { color: var(--red); }
 .btn svg.ico { width: 16px; height: 16px; }
 .textbtn { color: var(--green); font-size: 12px; display: inline-flex; align-items: center; gap: 5px; text-decoration: none; padding: 0; }
@@ -164,7 +169,7 @@ a.metric:hover, button.metric:hover { border-color: var(--green); }
 .hero-art { position: absolute; right: 0; top: 0; bottom: 0; width: 37%; background: radial-gradient(ellipse at 80% 100%, var(--tint), transparent 70%); display: flex; align-items: center; justify-content: center; }
 .orbit { position: absolute; width: 210px; height: 210px; border: 1px solid var(--line); border-radius: 50%; }
 .orbit.two { width: 145px; height: 145px; }
-.vault { width: 78px; height: 78px; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 12px 24px #143b2510; border-radius: 21px; transform: rotate(-10deg); animation: float 5s ease-in-out infinite; }
+.vault { width: 78px; height: 78px; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 12px 24px #0758ed1a; border-radius: 21px; transform: rotate(-10deg); animation: float 5s ease-in-out infinite; }
 .vault img { width: 44px; height: 44px; object-fit: contain; }
 
 /* --- listas de sistemas ------------------------------------------------- */
@@ -267,7 +272,7 @@ label small { font-weight: 400; }
 .checks { display: flex; flex-wrap: wrap; gap: 8px 18px; }
 .checks label { display: inline-flex; align-items: center; gap: 7px; margin: 0; font-weight: 400; }
 .checks input { width: auto; }
-.modal-backdrop { position: fixed; inset: 0; background: #0c171e66; backdrop-filter: blur(5px); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 24px; animation: enter 0.2s; }
+.modal-backdrop { position: fixed; inset: 0; background: #0b163066; backdrop-filter: blur(5px); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 24px; animation: enter 0.2s; }
 .modal { width: 680px; max-width: 100%; max-height: 88vh; overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 15px; box-shadow: 0 25px 90px #0003; padding: 28px; animation: modal 0.25s; }
 .modal-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 15px; margin-bottom: 8px; }
 .modal h2 { font-size: 22px; }

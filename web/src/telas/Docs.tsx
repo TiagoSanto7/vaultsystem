@@ -9,7 +9,7 @@ import { Icone } from "../icones";
 // Tutorial) entram aqui como novos arquivos em src/docs e uma linha em PAGINAS.
 type Pagina = { slug: string; titulo: string; texto?: string };
 const PAGINAS: Pagina[] = [
-  { slug: "cli", titulo: "CLI (pv)", texto: cli },
+  { slug: "cli", titulo: "VS CLI", texto: cli },
   { slug: "sobre", titulo: "Sobre" },
   { slug: "quickstart", titulo: "Quickstart" },
   { slug: "tutorial", titulo: "Tutorial" },

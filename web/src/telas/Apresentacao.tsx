@@ -7,23 +7,23 @@ import { Entrada } from "./Entrar";
 // Três passos na primeira entrada (UX02). Concluir ou pular grava no servidor.
 const PASSOS = [
   {
-    olho: "01 / Conecte o contexto",
+    olho: "01 / Reunir",
     titulo: "Comece pelo seu vault.",
-    texto: "Crie o vault e escolha as fontes: os repositórios do GitHub com o código e a documentação.",
-    etapas: ["Vault", "Repositórios", "Pastas"],
+    texto: "Conecte o terminal com um token de conexão e rode vs init na pasta do projeto. O primeiro vs sync cria o vault. Git é opcional.",
+    etapas: ["vs login", "vs init", "vs sync"],
     icone: "git",
   },
   {
-    olho: "02 / Produza conhecimento",
+    olho: "02 / Conectar",
     titulo: "Notas com origem.",
-    texto: "A cada commit, o curador lê o que mudou e escreve notas em Markdown. Cada nota aponta para o arquivo e o commit de onde veio, e o verificador confere tudo.",
-    etapas: ["Fila", "Curadoria", "Verificação"],
+    texto: "Os arquivos entram como estão. No modo documentado, as notas que o agente do projeto escreveu entram já curadas, cada uma ligada aos arquivos de onde veio, e o verificador confere tudo.",
+    etapas: ["Literal", "Notas do agente", "Verificação"],
     icone: "book",
   },
   {
-    olho: "03 / Consulte e integre",
-    titulo: "Conhecimento que trabalha.",
-    texto: "Leia as notas aqui e crie uma credencial para que agentes e sistemas consultem o conhecimento de um vault pela API, só leitura.",
+    olho: "03 / Distribuir",
+    titulo: "Conhecimento distribuído.",
+    texto: "Leia as notas aqui, aplique templates com vs add template e crie tokens de leitura para agentes e sistemas consultarem pela API e pelo MCP.",
     etapas: ["Notas", "Integrações", "Agentes"],
     icone: "spark",
   },

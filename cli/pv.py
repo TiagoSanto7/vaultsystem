@@ -685,6 +685,8 @@ COMANDOS = {"login": cmd_login, "logout": cmd_logout, "whoami": cmd_whoami, "tem
 
 
 def main(argv=None):
+    if os.path.basename(sys.argv[0] or "").lower().startswith("vs"):
+        os.environ.setdefault("VS_CLI", "1")  # instalada como vs (ou vs.py): é a CLI do Vault System
     argv = sys.argv[1:] if argv is None else argv
     if not argv or argv[0] in ("-h", "--help"):
         cmd_ajuda([], {}, set())

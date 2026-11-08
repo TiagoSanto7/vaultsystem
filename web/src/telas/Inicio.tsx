@@ -29,14 +29,14 @@ export default function Inicio() {
 
       <section className="hero">
         <div className="hero-copy">
-          <h2>Do código ao conhecimento.</h2>
-          <p>Acompanhe suas fontes, veja o que o curador escreveu e confira de onde veio cada nota.</p>
+          <h2>Conhecimento distribuído.</h2>
+          <p>Reúna arquivos e decisões, conecte cada nota à sua origem e distribua o contexto para pessoas, agentes e ferramentas.</p>
           <Link className="btn primary" to="/sistemas"><Icone nome="arrow" />Explorar vaults</Link>
         </div>
         <div className="hero-art" aria-hidden>
           <span className="orbit" />
           <span className="orbit two" />
-          <div className="vault"><img src="/simbolo.png" alt="" /></div>
+          <div className="vault"><img src="/simbolo.svg" alt="" /></div>
         </div>
       </section>
 
@@ -55,7 +55,7 @@ export default function Inicio() {
               <small>Curadas em Markdown, com origem</small>
             </div>
             <div className="metric">
-              <div className="metric-top">Repositórios GitHub<Icone nome="git" /></div>
+              <div className="metric-top">Origens<Icone nome="git" /></div>
               <strong>{origens}</strong>
               <small>Fontes cadastradas</small>
             </div>

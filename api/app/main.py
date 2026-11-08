@@ -388,6 +388,13 @@ def baixar_cli():
                         headers={"Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff"})
 
 
+@app.get("/v1/cli/vs")
+def baixar_cli_vs():
+    """A mesma CLI com o nome do Vault System: salva como `vs` (ou vs.py), ela se apresenta como vs."""
+    return FileResponse(_cli_pv(), media_type="text/x-python", filename="vs",
+                        headers={"Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff"})
+
+
 @app.post("/mcp")
 def mcp(corpo=Body(None), cred=Depends(credencial)):
     """MCP (Streamable HTTP, só respostas JSON). Uma mensagem JSON-RPC por POST."""

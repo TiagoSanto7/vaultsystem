@@ -62,7 +62,7 @@ export function CamposOrigem({ id, valor, mudar, nomeFixo, repoFixo, semLeituras
       ) : (
         <>
           <label htmlFor={`${id}-repo`}>Repositório GitHub <small className="muted">(endereço SSH, com chave de deploy)</small></label>
-          <input id={`${id}-repo`} className="mono" placeholder="git@github.com:PetrovinaS/meu-repo.git" value={valor.repo}
+          <input id={`${id}-repo`} className="mono" placeholder="git@github.com:minha-org/meu-repo.git" value={valor.repo}
             disabled={repoFixo} onChange={(e) => mudar({ ...valor, repo: e.target.value })} required />
         </>
       )}
@@ -196,7 +196,7 @@ function RepoDoApp({ id, valor, mudar, repoFixo }: { id: string; valor: OrigemFo
           <summary>O repositório não aparece?</summary>
           <p>
             A lista mostra só os repositórios onde o <b>GitHub App petro-vault</b> está instalado. Um admin da organização
-            inclui o repositório em GitHub → PetrovinaS → Settings → GitHub Apps → petro-vault → <b>Configure</b> →
+            inclui o repositório em GitHub → sua organização → Settings → GitHub Apps → o app do Vault System → <b>Configure</b> →
             Repository access. Depois, clique em <b>Atualizar lista</b>.
           </p>
         </details>

@@ -30,7 +30,7 @@ export async function api<T>(caminho: string, opcoes: { metodo?: string; corpo?:
       body: opcoes.corpo === undefined ? undefined : opcoes.corpo instanceof Blob ? opcoes.corpo : JSON.stringify(opcoes.corpo),
     });
   } catch {
-    throw new ErroApi(0, "Sem conexão com o PetroVault. Verifique a rede e tente de novo.");
+    throw new ErroApi(0, "Sem conexão com o hub do Vault System. Verifique a rede e tente de novo.");
   }
   const corpo = await r.json().catch(() => null);
   if (!r.ok) {
