@@ -51,8 +51,12 @@ Em CI ou num agente, use as variáveis `VS_URL` e `VS_TOKEN` no lugar do login.
 Na raiz do projeto:
 
 ```
-vs init vault=meu-projeto
+vs init vault meu-projeto
 ```
+
+Para templates, `vs init template design` liga a pasta ao vault `template-design`:
+cada subpasta é um template (`design:default`, `design:motion-vs`…), e o modo
+padrão é `literal`.
 
 O `vs init` grava três coisas:
 
@@ -63,7 +67,7 @@ O `vs init` grava três coisas:
 
 Modos: **literal + documentado** (padrão) guarda os arquivos e importa as
 notas do agente (`mode=documented`). **Literal** (`mode=literal`) só guarda os arquivos; é o padrão
-de um vault de template (`vault=template-<tipo>`).
+de um vault de template (`vs init template <tipo>`).
 
 ## Documentar com o agente
 
@@ -137,8 +141,10 @@ são refeitas a cada pedido; as notas do agente do projeto têm prioridade.
 vs login [url=<hub>]               conecta ao hub com o token de conexão
 vs logout                          apaga o token guardado
 vs whoami                          hub, token e dono do workspace
-vs init [nome] vault=<v> mode=<m>  liga a pasta a um vault
+vs init vault <nome> [mode=<m>]    liga a pasta a um vault
+vs init template <tipo>           liga a pasta ao vault template-<tipo>
 vs sync [--dry-run]                envia a pasta ao vault do .vs
+vs sync vault|template <nome>      envia a pasta a outro vault
 vs sync <vault> <zip> [mode=…]     envia um ZIP pronto
 vs templates [tipo]                lista os templates
 vs add template <tipo:nome>        aplica um template na pasta

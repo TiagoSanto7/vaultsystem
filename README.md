@@ -39,7 +39,7 @@ The **hub** is your workspace server: it stores the vaults, shows the notes and 
    - Windows: `irm <hub>/v1/cli/install.ps1 | iex`
    - Linux, macOS and WSL: `curl -fsSL <hub>/v1/cli/install.sh | sh`
 2. **Connect.** In the Tokens tab, create a **connection token** and run `vs login`. The token is saved only for your user (`~/.config/vaultsystem/config.json`). `vs whoami` shows the hub and the workspace owner.
-3. **Link the folder.** `vs init vault=my-project` writes the link in `.vs` and adds the documentation protocol to `AGENTS.md`. The default mode is **literal + documented** (`mode=documented`); `mode=literal` only stores the files.
+3. **Link the folder.** `vs init vault my-project` writes the link in `.vs` and adds the documentation protocol to `AGENTS.md`. The default mode is **literal + documented** (`mode=documented`); `mode=literal` only stores the files. For templates, `vs init template design` links the folder to the `template-design` vault: each subfolder is one template (`design:default`, `design:motion-vs`, …), and the default mode is `literal`.
 4. **Document.** The project's agent (Claude Code, Codex or another) reads `AGENTS.md` and writes one note per subject, with its type and source files in the header.
 5. **Send.** `vs sync` packages the folder, respecting `.gitignore` (`.env`, `node_modules` and the like never go), and sends it. The first sync creates the vault. Files are stored as they are, and the agent's notes arrive **already curated**, linked to their sources. A file that looks like a secret blocks the sync. `vs sync --dry-run` lists what would be sent.
 6. **Distribute.** The vault's knowledge becomes available to:
@@ -56,8 +56,10 @@ The **hub** is your workspace server: it stores the vaults, shows the notes and 
 | `vs login [url=<address>]` | Connects to the hub with your connection token. |
 | `vs logout` | Removes the saved token. |
 | `vs whoami` | Shows the hub, the token and the workspace owner. |
-| `vs init [name] [vault=<name>] [mode=literal\|documented]` | Links this folder to a vault: writes `.vs`, `AGENTS.md` and `VS.lock`. |
+| `vs init vault <name> [mode=literal\|documented]` | Links this folder to a vault: writes `.vs`, `AGENTS.md` and `VS.lock`. |
+| `vs init template <type> [mode=literal\|documented]` | Links this folder to the `template-<type>` vault; each subfolder is a template. |
 | `vs sync [--dry-run] [--curate]` | Packages this folder and sends it to the vault in `.vs`. |
+| `vs sync vault <name>` / `vs sync template <type>` | Sends this folder to that vault or template vault instead. |
 | `vs sync <vault> <file.zip> [mode=literal\|documented]` | Sends a ready-made ZIP to a vault. |
 | `vs templates [type]` | Lists the templates on the hub. |
 | `vs add template <type:name> [dir=<folder>] [--dry-run] [--force]` | Applies a template to the current folder. |
