@@ -1,0 +1,15 @@
+.env
+__pycache__/
+.pytest_cache/
+keys/
+*.pem
+!api/certs/ad-ca.pem
+local/dados/
+exemplos/**/.vs
+exemplos/**/VS.lock
+exemplos/**/.vaultsystem/
+
+# Ferramentas locais do editor/agente (não fazem parte do produto)
+.agents/
+.claude/
+skills-lock.json

@@ -1,0 +1,4 @@
+fastapi==0.143.1
+uvicorn==0.54.0
+itsdangerous==2.2.0
+ldap3==2.9.1

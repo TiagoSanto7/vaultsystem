@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vault System</title>
+  <link rel="stylesheet" href="../tokens/cores.css">
+  <link rel="stylesheet" href="../tokens/tipografia.css">
+  <link rel="stylesheet" href="../componentes/botao.css">
+  <link rel="stylesheet" href="../componentes/cartao.css">
+  <style>
+    body { margin: 0; }
+    .pagina { max-width: 960px; margin: 0 auto; padding: 48px 16px; }
+    .marca { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+    .marca img { width: 32px; height: 32px; }
+    .grade { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-top: 32px; }
+    .acoes { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
+  </style>
+</head>
+<body>
+  <main class="pagina">
+    <div class="marca"><img src="../assets/simbolo.svg" alt="">Vault System</div>
+    <p class="vs-sobretitulo">Conhecimento orbital</p>
+    <h1>Conhecimento distribuído.</h1>
+    <p>Arquivos e contexto com origem, para pessoas, agentes e ferramentas.</p>
+    <div class="acoes">
+      <button class="vs-botao vs-botao--primario">Criar vault</button>
+      <button class="vs-botao">Ver documentação</button>
+    </div>
+    <section class="grade">
+      <article class="vs-cartao vs-cartao--destaque"><h3>01 · Reunir</h3><p>Código, documentos e decisões entram na órbita do projeto.</p></article>
+      <article class="vs-cartao"><h3>02 · Conectar</h3><p>As relações entre as fontes dão contexto a cada informação.</p></article>
+      <article class="vs-cartao"><h3>03 · Distribuir</h3><p>Pessoas, agentes e ferramentas reaproveitam o contexto.</p></article>
+    </section>
+  </main>
+</body>
+</html>

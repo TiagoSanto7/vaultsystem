@@ -1,0 +1,6 @@
+name: vault-system-curador
+version: "1.0.0"
+description: "Regras do curador do vault-system: no lote da tag X e perfil P, lê só o lote, as regras, os modelos de P e sistemas/X/; escreve só nas pastas de P e no registro de X."
+author: vault-system
+hooks:
+  - pre_tool_call
