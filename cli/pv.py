@@ -24,8 +24,10 @@ Comandos:
         --dry-run                      só mostra o que faria
         --force                        sobrescreve o que já existe
     pv repo conectar <url-ssh>         inicializa o Git e configura o remoto vault
-    pv versao                          esta versão e a do servidor
-    pv ajuda                           este texto
+    pv version                         esta versão e a do servidor
+    pv update                          baixa do hub a versão mais nova da CLI
+    pv welcome                         o painel de boas-vindas (o comando vaultsystem)
+    pv help                            este texto
 
 Todo comando aceita --json (saída para script e agente). PV_TOKEN e PV_URL no
 ambiente têm prioridade sobre ~/.config/petrovault/config.json.
@@ -45,7 +47,7 @@ import urllib.parse
 import urllib.request
 import zipfile
 
-VERSAO = "0.1.0"
+VERSAO = "0.2.0"
 URL_PADRAO = "http://10.2.2.31:8670"
 REGISTRO = os.path.join(".petrovault", "templates.json")
 INIT_PADRAO = """# AGENTS.md
@@ -627,11 +629,78 @@ def cmd_versao(pos, params, flags):
     except Erro:
         servidor = None
     info = {"versao": VERSAO, "servidor": servidor, "url": url_base()}
-    texto = f"pv {VERSAO}"
+    texto = f"{cli()} {VERSAO}"
     if servidor and servidor != VERSAO:
-        texto += (f"\nO servidor tem a versão {servidor}. Atualize:\n"
-                  f"  curl -fsSL {url_base()}/v1/cli/pv -o {os.path.abspath(sys.argv[0])}")
+        texto += f"\nO hub tem a versão {servidor}. Atualize com: {cli()} update"
     saida(info, "json" in flags, texto)
+
+
+def _script_atual():
+    """O arquivo .py desta CLI (o que o instalador colocou na pasta do Vault System)."""
+    caminho = os.path.realpath(__file__)
+    if not caminho.endswith(".py") and not os.access(caminho, os.W_OK):
+        raise Erro("não sei onde esta CLI está instalada; rode o instalador do hub de novo")
+    return caminho
+
+
+def cmd_update(pos, params, flags):
+    """Baixa a CLI do hub (GET /v1/cli/vs, sem token) e troca este arquivo, se for mais nova ou diferente."""
+    if pos or params or flags - {"json", "force"}:
+        raise Erro(f"uso: {cli()} update [--force]")
+    base = url_base()
+    if not base:
+        raise Erro(f"configure o hub antes: {cli()} login url=<endereço>")
+    req = urllib.request.Request(base + "/v1/cli/vs", headers={"User-Agent": f"vs/{VERSAO}"})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            novo = r.read()
+    except urllib.error.URLError as e:
+        raise Erro(f"não consegui baixar a CLI de {base}: {getattr(e, 'reason', e)}") from None
+    m = re.search(rb'^VERSAO = "([^"]+)"', novo, re.M)
+    if not novo.startswith(b"#!") or not m:
+        raise Erro("o hub não devolveu a CLI esperada; nada mudou")
+    versao = m.group(1).decode()
+    alvo = _script_atual()
+    with open(alvo, "rb") as f:
+        igual = f.read() == novo
+    if igual and "force" not in flags:
+        saida({"versao": versao, "atualizado": False}, "json" in flags, f"Já está na versão do hub ({versao}).")
+        return 0
+    tmp = alvo + ".novo"
+    with open(tmp, "wb") as f:
+        f.write(novo)
+    os.replace(tmp, alvo)
+    saida({"versao": versao, "antes": VERSAO, "atualizado": True, "arquivo": alvo}, "json" in flags,
+          f"CLI atualizada: {VERSAO} -> {versao} ({alvo}).")
+    return 0
+
+
+LOGO = ["    .--------.", "   /  o    o  \\--o", "  |    \\  /    |", "  |     @------+--o",
+        "  |    /  \\    |", "   \\  o    o  /--o", "    '--------'"]
+
+
+def cmd_welcome(pos, params, flags):
+    """O painel de boas-vindas do comando vaultsystem: marca, hub e sessão, e os primeiros comandos."""
+    if os.name == "nt":
+        os.system("")  # liga as cores ANSI no console do Windows
+    cor = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+    azul, ciano, cinza, fim = (("\033[34m", "\033[96m", "\033[37m", "\033[0m") if cor else ("", "", "", ""))
+    c = ler_config()
+    hub = url_base() or "(não configurado: vs login url=<hub>)"
+    sessao = "token no ambiente" if os.environ.get("VS_TOKEN") else ("conectado" if c.get("token") else "sem token")
+    info = ["Vault System  [VS CLI]", "Conhecimento distribuído.", "", f"versão    {VERSAO}",
+            f"hub       {hub}", f"sessão    {sessao}", ""]
+    lw = max(len(l) for l in LOGO) + 3
+    w = max(len(l) for l in info)
+    borda = "+" + "-" * (lw + w + 4) + "+"
+    linhas = [azul + borda + fim]
+    for i, l in enumerate(LOGO):
+        linhas.append(f"{azul}|  {fim}{ciano}{l.ljust(lw)}{fim}{(ciano if i == 0 else cinza)}{info[i].ljust(w)}  {fim}{azul}|{fim}")
+    linhas += [azul + borda + fim, "", f"{ciano}  Para começar{fim}"]
+    passos = ["vs login", "vs init vault=<nome>", "vs sync", "vs add template design:default", "vs help"]
+    linhas += [f"    > {p}" for p in passos]
+    saida({"versao": VERSAO, "hub": url_base() or None, "sessao": sessao}, "json" in flags, "\n".join(linhas))
+    return 0
 
 
 def cmd_ajuda(pos, params, flags):
@@ -681,13 +750,17 @@ COMANDOS = {"login": cmd_login, "logout": cmd_logout, "whoami": cmd_whoami, "tem
             "init": cmd_init,
             "sync": cmd_sync,
             "repo": cmd_repo,
+            "update": cmd_update, "welcome": cmd_welcome,
             "versao": cmd_versao, "version": cmd_versao, "ajuda": cmd_ajuda, "help": cmd_ajuda}
 
 
 def main(argv=None):
-    if os.path.basename(sys.argv[0] or "").lower().startswith("vs"):
+    nome = os.path.basename(sys.argv[0] or "").lower()
+    if nome.startswith(("vs", "vaultsystem")):
         os.environ.setdefault("VS_CLI", "1")  # instalada como vs (ou vs.py): é a CLI do Vault System
     argv = sys.argv[1:] if argv is None else argv
+    if nome.startswith("vaultsystem") and not argv:
+        argv = ["welcome"]
     if not argv or argv[0] in ("-h", "--help"):
         cmd_ajuda([], {}, set())
         return 0

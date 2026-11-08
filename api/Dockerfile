@@ -19,8 +19,8 @@ COPY api/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY petro_vault ./petro_vault
 COPY api/app ./app
-# CLI pv (DV-607): a API serve o arquivo em /v1/cli/pv para instalar com curl.
-COPY cli/pv.py ./cli/pv.py
+# CLI (DV-607; Vault System): a API serve a CLI em /v1/cli/vs e os instaladores em /v1/cli/install.ps1 e install.sh.
+COPY cli ./cli
 # CA do AD da Petrovina (pública), para o login das pessoas por LDAPS (DV-547).
 COPY api/certs ./certs
 COPY --from=tela /web/dist ./web

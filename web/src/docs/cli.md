@@ -7,30 +7,29 @@ Git é opcional.
 
 ## Instalar
 
-A `vs` é um arquivo Python único, sem dependências. Precisa de Python 3.8 ou
-mais novo.
-
-**Linux, macOS e WSL:**
-
-```
-mkdir -p ~/.local/bin
-curl -fsSL {{URL}}/v1/cli/vs -o ~/.local/bin/vs
-chmod +x ~/.local/bin/vs
-vs version
-```
-
-Se aparecer `vs: command not found`, coloque `~/.local/bin` no `PATH`
-(`export PATH="$HOME/.local/bin:$PATH"` no `~/.bashrc`).
+Um comando instala a `vs` e o `vaultsystem` no seu usuário, sem administrador,
+já apontando para este hub. Precisa do Python 3.8 ou mais novo.
 
 **Windows (PowerShell):**
 
 ```
-curl.exe -fsSL {{URL}}/v1/cli/vs -o vs.py
-python vs.py version
+irm {{URL}}/v1/cli/install.ps1 | iex
 ```
 
-No Windows, troque `vs` por `python vs.py` nos exemplos abaixo, ou use o
-`vs.cmd` que vem no repositório do Vault System.
+Instala em `%LOCALAPPDATA%\VaultSystem` e põe `%LOCALAPPDATA%\VaultSystem\bin`
+no PATH do seu usuário. Abra um terminal novo depois.
+
+**Linux, macOS e WSL:**
+
+```
+curl -fsSL {{URL}}/v1/cli/install.sh | sh
+```
+
+Instala em `~/.local/share/vaultsystem` e cria `vs` e `vaultsystem` em
+`~/.local/bin` (se ela não estiver no PATH, o instalador mostra a linha para o
+`~/.bashrc`).
+
+Para atualizar depois: `vs update`. `vs version` compara com a versão do hub.
 
 ## Conectar ao hub
 

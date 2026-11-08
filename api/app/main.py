@@ -395,6 +395,26 @@ def baixar_cli_vs():
                         headers={"Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff"})
 
 
+INSTALADORES = {"install.ps1": "text/plain; charset=utf-8", "install.sh": "text/x-shellscript; charset=utf-8"}
+
+
+@app.get("/v1/cli/{nome}")
+def instalador_cli(nome: str):
+    """Instaladores da VS CLI, já com o endereço deste hub (sem credencial):
+    `irm <hub>/v1/cli/install.ps1 | iex` no Windows e `curl -fsSL <hub>/v1/cli/install.sh | sh` no resto."""
+    if nome not in INSTALADORES:
+        raise HTTPException(404, "não encontrado")
+    caminho = os.path.join(os.path.dirname(_cli_pv()), nome)
+    if not os.path.isfile(caminho):
+        raise HTTPException(404, "instalador não incluído nesta imagem")
+    with open(caminho, encoding="utf-8") as f:
+        texto = f.read().replace("{{HUB}}", baixar.url_publica())
+    if nome.endswith(".ps1"):
+        texto = texto.replace("\r\n", "\n").replace("\n", "\r\n")  # o PowerShell 5.1 prefere CRLF
+    return Response(texto, media_type=INSTALADORES[nome],
+                    headers={"Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff"})
+
+
 @app.post("/mcp")
 def mcp(corpo=Body(None), cred=Depends(credencial)):
     """MCP (Streamable HTTP, só respostas JSON). Uma mensagem JSON-RPC por POST."""

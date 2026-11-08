@@ -1,0 +1,7 @@
+# Vault System: tudo em LF no repositório e na pasta de trabalho (os scripts rodam em Linux).
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.png binary
+*.jpg binary
+*.zip binary
+*.docx binary

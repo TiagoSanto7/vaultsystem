@@ -210,3 +210,16 @@ def test_pacote_do_sync_e_zip_valido(tmp_path):
     (tmp_path / "a" / "b.txt").write_text("oi")
     with zipfile.ZipFile(io.BytesIO(pv._empacotar(str(tmp_path), ["a/b.txt"]))) as z:
         assert z.namelist() == ["a/b.txt"] and z.read("a/b.txt") == b"oi"
+
+
+def test_instaladores_da_cli_com_o_endereco_do_hub(tela, monkeypatch):
+    cliente, _, _ = tela
+    monkeypatch.setenv("VAULT_URL_PUBLICA", "http://hub.exemplo:8790")
+    ps = cliente.get("/v1/cli/install.ps1")
+    assert ps.status_code == 200 and "irm http://hub.exemplo:8790/v1/cli/install.ps1 | iex" in ps.text
+    assert "{{HUB}}" not in ps.text and "\r\n" in ps.text
+    sh = cliente.get("/v1/cli/install.sh")
+    assert sh.status_code == 200 and "HUB=${VS_HUB:-http://hub.exemplo:8790}" in sh.text
+    assert cliente.get("/v1/cli/qualquer.txt").status_code == 404
+    vs = cliente.get("/v1/cli/vs")
+    assert vs.status_code == 200 and vs.text.startswith("#!")
