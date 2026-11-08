@@ -6,38 +6,49 @@ A single file using only the Python standard library (3.8 or newer). Install:
     Windows:              irm <hub>/v1/cli/install.ps1 | iex
     Linux, macOS, WSL:    curl -fsSL <hub>/v1/cli/install.sh | sh
 
+Every command follows one pattern: vs <verb> [object] [key=value ...] [--flag ...].
+Full reference: docs/commands.md in the Vault System repository.
+
 Commands:
 
-    vs login [url=<address>]           connect to the hub with your connection token (asked without echo)
-    vs logout                          remove the saved token
-    vs whoami                          show the hub, the token and the workspace owner
-    vs templates [type]                list templates (one type or all)
-    vs init vault=<name>               link this folder to a vault: AGENTS.md, .vs and VS.lock
-    vs init template=<type>            link this folder to the template vault template-<type>;
-                                       each subfolder is one template (<type>:<folder>)
-        mode=literal|documented        default: documented for a vault, literal for a template
-    vs init                            prepare this folder (AGENTS.md, .vs) without linking it to a vault
-    vs init [package]                  same, with an init package from the hub
-    vs sync                            package this folder and send it to the vault in .vs (creates it on first sync)
-    vs sync vault=<name>               add this folder to that vault (other folders' content stays)
-    vs sync template=<type>            add this folder to template-<type> as one template
-        name=<template>                the template name (default: this folder's name)
-        --dry-run                      only list what would be sent
-        --curate                       ask Vault-I to curate (needs an API key on the hub)
-    vs sync <vault> <file.zip>         send a ready-made ZIP to a vault
-        mode=literal|documented        creates the vault on the first snapshot
-    vs add template <type:name>        apply a template to the current folder
-        dir=<folder>                   into another folder
-        --dry-run                      only show what would be done
-        --force                        overwrite existing files
-    vs repo connect <ssh-url>          initialize Git and add the vault remote
-    vs version                         this version and the hub's
-    vs update                          download the latest CLI from the hub
-    vs welcome                         the welcome panel (the vaultsystem command)
-    vs help                            this text
+  Connection
+    vs login [url=<hub>]                    connect to a hub with a connection token (asked without echo)
+    vs logout                               remove the saved token
+    vs whoami                               show the hub, the token and the workspace owner
 
-Every command accepts --json (output for scripts and agents). VS_TOKEN and VS_URL in
-the environment take precedence over ~/.config/vaultsystem/config.json.
+  Project folder
+    vs init                                 prepare this folder (AGENTS.md, .vs, VS.lock), not linked to a vault
+    vs init vault=<name>                    ...and link it to a vault (default mode=documented)
+    vs init template=<type>                 ...and link it to template-<type>; each subfolder is a template
+        mode=literal|documented             literal stores files only; documented also imports the agent's notes
+        package=<name>                      apply the init package init:<name> from the hub
+    vs sync                                 send this folder to the vault linked in .vs
+    vs sync vault=<name>                    add this folder to a vault (what other folders sent stays)
+    vs sync template=<type>                 add this folder to template-<type> as one template
+        name=<template>                     the template's name (default: this folder's name)
+        file=<zip>                          send a ready-made ZIP instead of this folder
+        --dry-run                           only list what would be sent
+        --curate                            ask Vault-I to curate (needs an API key or token on the hub)
+
+  Templates
+    vs list templates [type=<type>]         list the templates on the hub
+    vs add template <type:name>             apply a template to this folder
+        dir=<folder>                        into another folder
+        --dry-run                           only show what would be done
+        --force                             overwrite existing files
+
+  Git (optional)
+    vs connect repo <ssh-url>               initialize Git here and add the vault remote
+
+  CLI
+    vs version                              this version and the hub's
+    vs update                               download the latest CLI from the hub
+    vs help                                 this text
+    vaultsystem                             the welcome panel
+
+Every command accepts --json (output for scripts and agents). Shared parameter:
+dir=<folder> runs the command on another folder. VS_TOKEN and VS_URL in the environment
+take precedence over ~/.config/vaultsystem/config.json.
 """
 import datetime
 import getpass
@@ -101,7 +112,20 @@ O desconto nunca passa de 15%: `preco_final` limita o valor recebido.
   o que tiver cara de segredo e avisa.
 
 **Ao terminar uma mudança:** atualize ou crie as notas afetadas, apague as que
-deixaram de valer e rode `vs sync`.
+deixaram de valer e envie:
+
+```bash
+vs sync --dry-run   # confira a lista; as notas aparecem marcadas com *
+vs sync
+```
+
+**Comandos que o agente usa** (referência completa: `vs help`):
+- `vs sync`: envia esta pasta ao vault do `.vs`. Nunca rode `vs init` de novo
+  numa pasta que já tem `.vs`, e não troque o vault ou o modo sem pedido.
+- `vs sync --dry-run`: mostra o que iria, sem enviar.
+- `vs list templates` e `vs add template <type:name>`: listam e aplicam
+  templates do hub. Use `--dry-run` antes; nunca use `--force` sem pedido.
+- Não peça curadoria (`--curate`) sem pedido: ela usa a chave de IA do hub.
 <!-- vs:fim -->
 
 ## Este projeto
@@ -254,6 +278,28 @@ def cmd_logout(pos, params, flags):
     saida({"ok": True}, "json" in flags, "Token apagado.")
 
 
+class Renomeado(Erro):
+    pass
+
+
+def _renomeado(novo):
+    def cmd(pos, params, flags):
+        raise Renomeado(f"este comando mudou: use {cli()} {novo}")
+    return cmd
+
+
+def cmd_list(pos, params, flags):
+    if pos != ["templates"] or set(params) - {"type"} or flags - {"json"}:
+        raise Erro(f"uso: {cli()} list templates [type=<type>] [--json]")
+    return cmd_templates([params["type"]] if params.get("type") else [], {}, flags)
+
+
+def cmd_connect(pos, params, flags):
+    if len(pos) != 2 or pos[0] != "repo":
+        raise Erro(f"uso: {cli()} connect repo <ssh-url>")
+    return cmd_repo(["connect", pos[1]], params, flags)
+
+
 def cmd_templates(pos, params, flags):
     tipo = pos[0] if pos else None
     r = (pedir("/v1/templates" + (f"?tipo={urllib.parse.quote(tipo)}" if tipo else ""), token())
@@ -325,7 +371,7 @@ def _alvo(destino, rel):
 
 def cmd_add(pos, params, flags):
     if len(pos) != 2 or pos[0] != "template":
-        raise Erro("uso: vs add template <tipo:nome> [dir=<pasta>] [--dry-run] [--force]")
+        raise Erro(f"uso: {cli()} add template <type:name> [dir=<folder>] [--dry-run] [--force]")
     return _aplicar_template(pos[1], params, flags)
 
 
@@ -357,12 +403,18 @@ def _alvo_nomeado(tipo, nome):
     return nome if tipo == "vault" else "template-" + nome
 
 
+USO_INIT = ("uso: vs init [vault=<name> | template=<type>] [mode=literal|documented] [package=<name>] "
+            "[dir=<folder>] [--dry-run] [--force] [--json]")
+
+
 def cmd_init(pos, params, flags):
-    if pos and pos[0] in TIPOS_ALVO:
-        if len(pos) != 2 or params.get("vault") or params.get("template"):
-            raise Erro(f"uso: {cli()} init vault=<name> | {cli()} init template=<type> [mode=literal|documented]")
-        params = {**params, pos[0]: pos[1]}
-        pos = []
+    if pos:
+        dica = (f"use {cli()} init {pos[0]}={pos[1]}" if len(pos) == 2 and pos[0] in TIPOS_ALVO
+                else f"use {cli()} init package={pos[0]}" if len(pos) == 1 else USO_INIT)
+        raise Erro(dica)
+    pacote = params.pop("package", None) if "package" in params else None
+    if pacote is not None and not re.fullmatch(r"[a-z0-9][a-z0-9._-]*", pacote):
+        raise Erro("nome de pacote inválido")
     if params.get("vault") and params.get("template"):
         raise Erro(f"use vault=<name> ou template=<type>, não os dois")
     if params.get("vault"):
@@ -371,14 +423,13 @@ def cmd_init(pos, params, flags):
         tipo = params["template"]
         params = {k: v for k, v in params.items() if k != "template"}
         params["vault"] = _alvo_nomeado("template", tipo)
-    if len(pos) > 1 or set(params) - {"dir", "vault", "mode"} or flags - {"dry-run", "force", "json"}:
-        raise Erro(f"uso: {cli()} init vault=<name> | {cli()} init template=<type> [mode=literal|documented] "
-                   "[dir=<folder>] [--dry-run] [--force] [--json]")
+    if set(params) - {"dir", "vault", "mode"} or flags - {"dry-run", "force", "json"}:
+        raise Erro(USO_INIT)
     if params.get("vault") and not TAG.fullmatch(params["vault"]):
         raise Erro("nome de vault inválido: use minúsculas, números e hífen (ex.: meu-projeto)")
     if params.get("mode") and params["mode"] not in MODOS:
         raise Erro("modo inválido: use mode=literal ou mode=documented")
-    return _aplicar_template("init:" + (pos[0] if pos else "padrao"), params, flags, iniciar=True)
+    return _aplicar_template("init:" + (pacote or "padrao"), params, flags, iniciar=True)
 
 
 def _modo_do_vs(vs):
@@ -476,39 +527,50 @@ def _texto_curadoria(r):
     return f"\nCuradoria do Vault-I não pedida: {c.get('motivo')}"
 
 
+USO_SYNC = ("uso: vs sync [vault=<name> | template=<type>] [name=<template>] [file=<zip>] "
+            "[mode=literal|documented] [dir=<folder>] [--dry-run] [--curate] [--json]")
+
+
 def cmd_sync(pos, params, flags):
-    if not pos and (params.get("vault") or params.get("template")):
-        if params.get("vault") and params.get("template"):
-            raise Erro("use vault=<name> ou template=<type>, não os dois")
-        tipo = "vault" if params.get("vault") else "template"
-        alvo = (tipo, _alvo_nomeado(tipo, params[tipo]))
-        return _sync_projeto({k: v for k, v in params.items() if k not in TIPOS_ALVO}, flags, alvo=alvo)
-    if params.get("name"):
+    if pos:
+        dica = (f"use {cli()} sync {pos[0]}={pos[1]}" if len(pos) == 2 and pos[0] in TIPOS_ALVO
+                else f"use {cli()} sync vault={pos[0]} file={pos[1]}" if len(pos) == 2 else USO_SYNC)
+        raise Erro(dica)
+    if params.get("vault") and params.get("template"):
+        raise Erro("use vault=<name> ou template=<type>, não os dois")
+    alvo = None
+    for tipo in TIPOS_ALVO:
+        if params.get(tipo):
+            alvo = (tipo, _alvo_nomeado(tipo, params[tipo]))
+    params = {k: v for k, v in params.items() if k not in TIPOS_ALVO}
+    if params.get("name") and not (alvo and alvo[0] == "template"):
         raise Erro(f"name= só vale com template=: {cli()} sync template=<type> name=<template>")
-    if not pos:
-        return _sync_projeto(params, flags)
-    if pos[0] in TIPOS_ALVO:
-        if len(pos) != 2:
-            raise Erro(f"uso: {cli()} sync vault=<name> | {cli()} sync template=<type> [--dry-run] [--curate]")
-        return _sync_projeto(params, flags, alvo=(pos[0], _alvo_nomeado(pos[0], pos[1])))
+    if params.get("file"):
+        return _sync_zip(alvo, params, flags)
+    return _sync_projeto(params, flags, alvo=alvo)
+
+
+def _sync_zip(alvo, params, flags):
+    """vs sync vault=<name> file=<zip>: envia um ZIP pronto (cria o vault no primeiro envio)."""
+    if not alvo or set(params) - {"file", "mode"} or flags - {"json", "curate"}:
+        raise Erro(f"uso: {cli()} sync vault=<name> file=<zip> [mode=literal|documented] [--curate] [--json]")
     modo = params.get("mode")
-    if (len(pos) != 2 or set(params) - {"mode"} or modo not in (None, *MODOS)
-            or flags - {"json", "curate"} or not TAG.fullmatch(pos[0])):
-        raise Erro(f"uso: {cli()} sync [--dry-run] [--curate]   (na pasta preparada pelo {cli()} init)\n"
-                   f"  ou: {cli()} sync <vault> <arquivo.zip> [mode=literal|documented] [--curate] [--json]")
-    tag, caminho = pos
-    with open(caminho, "rb") as f:
+    if modo not in (None, *MODOS):
+        raise Erro("modo inválido: use mode=literal ou mode=documented")
+    with open(params["file"], "rb") as f:
         pacote = f.read(LIMITE_PACOTE + 1)
     if len(pacote) > LIMITE_PACOTE or not zipfile.is_zipfile(io.BytesIO(pacote)):
         raise Erro("informe um ZIP válido de até 10 MB")
-    r = _enviar(tag, pacote, MODO_NO_HUB.get(modo), "curate" in flags)
-    saida(r, "json" in flags, f"Snapshot recebido: {r['arquivos']} arquivo(s) · {r['commit'][:12]}. "
-                              f"Processamento solicitado.{_texto_curadoria(r)}")
+    modo = modo or ("literal" if alvo[0] == "template" else "documented")
+    r = _enviar(alvo[1], pacote, MODO_NO_HUB[modo], "curate" in flags)
+    saida(r, "json" in flags, f"Enviado para {alvo[1]}: {r['arquivos']} arquivo(s) · revisão {r['commit'][:12]}."
+                              f"{_texto_curadoria(r)}")
+    return 0
 
 
 def _sync_projeto(params, flags, alvo=None):
     if set(params) - {"dir", "mode", "name"} or flags - {"json", "dry-run", "curate"} or (params.get("mode") and not alvo):
-        raise Erro(f"uso: {cli()} sync [vault=<name> | template=<type>] [dir=<folder>] [--dry-run] [--curate] [--json]")
+        raise Erro(USO_SYNC)
     if params.get("mode") and params["mode"] not in MODOS:
         raise Erro("modo inválido: use mode=literal ou mode=documented")
     raiz = os.path.abspath(params.get("dir") or ".")
@@ -786,20 +848,20 @@ def cmd_welcome(pos, params, flags):
     for i, l in enumerate(LOGO):
         linhas.append(f"{azul}|  {fim}{ciano}{l.ljust(lw)}{fim}{(ciano if i == 0 else cinza)}{info[i].ljust(w)}  {fim}{azul}|{fim}")
     linhas += [azul + borda + fim, "", f"{ciano}  Para começar{fim}"]
-    passos = ["vs login", "vs init vault=<name>", "vs sync", "vs add template design:default", "vs help"]
+    passos = ["vs login", "vs init vault=<name>", "vs sync", "vs list templates", "vs help"]
     linhas += [f"    > {p}" for p in passos]
     saida({"versao": VERSAO, "hub": url_base() or None, "sessao": sessao}, "json" in flags, "\n".join(linhas))
     return 0
 
 
 def cmd_ajuda(pos, params, flags):
-    ajuda = __doc__.split("Commands:\n", 1)[1].strip()
+    ajuda = __doc__.split("Commands:\n", 1)[1].rstrip()
     print(ajuda)
 
 
 def cmd_repo(pos, params, flags):
     if len(pos) != 2 or pos[0] != "connect" or params or flags - {"json"}:
-        raise Erro("use vs repo connect ssh://git@servidor/projetos/demo.git")
+        raise Erro("uso: vs connect repo ssh://git@servidor/projetos/demo.git")
     url = pos[1]
     if not re.fullmatch(r"(?:git@[A-Za-z0-9.-]+:|ssh://git@[A-Za-z0-9.-]+(?::[0-9]+)?/)[A-Za-z0-9._/-]+", url):
         raise Erro("informe a URL SSH do repositório com o usuário git")
@@ -833,12 +895,13 @@ def cmd_repo(pos, params, flags):
           f"Remoto vault configurado: {url}")
 
 
-COMANDOS = {"login": cmd_login, "logout": cmd_logout, "whoami": cmd_whoami, "templates": cmd_templates, "add": cmd_add,
-            "init": cmd_init,
-            "sync": cmd_sync,
-            "repo": cmd_repo,
-            "update": cmd_update, "welcome": cmd_welcome,
-            "version": cmd_versao, "help": cmd_ajuda}
+COMANDOS = {"login": cmd_login, "logout": cmd_logout, "whoami": cmd_whoami,
+            "init": cmd_init, "sync": cmd_sync,
+            "list": cmd_list, "add": cmd_add,
+            "connect": cmd_connect,
+            "version": cmd_versao, "update": cmd_update, "help": cmd_ajuda, "welcome": cmd_welcome,
+            # nomes antigos: avisam o novo
+            "templates": _renomeado("list templates [type=<type>]"), "repo": _renomeado("connect repo <ssh-url>")}
 
 
 def main(argv=None):

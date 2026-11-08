@@ -9,7 +9,7 @@ const PASSOS = [
   {
     olho: "01 / Reunir",
     titulo: "Comece pelo seu vault.",
-    texto: "Conecte o terminal com um token de conexão e rode vs init na pasta do projeto. O primeiro vs sync cria o vault. Git é opcional.",
+    texto: "Conecte o terminal com um token de conexão e rode vs init vault=<nome> na pasta do projeto. O primeiro vs sync cria o vault. Git é opcional.",
     etapas: ["vs login", "vs init", "vs sync"],
     icone: "git",
   },

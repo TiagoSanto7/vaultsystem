@@ -41,7 +41,20 @@ O desconto nunca passa de 15%: `preco_final` limita o valor recebido.
   o que tiver cara de segredo e avisa.
 
 **Ao terminar uma mudança:** atualize ou crie as notas afetadas, apague as que
-deixaram de valer e rode `vs sync`.
+deixaram de valer e envie:
+
+```bash
+vs sync --dry-run   # confira a lista; as notas aparecem marcadas com *
+vs sync
+```
+
+**Comandos que o agente usa** (referência completa: `vs help`):
+- `vs sync`: envia esta pasta ao vault do `.vs`. Nunca rode `vs init` de novo
+  numa pasta que já tem `.vs`, e não troque o vault ou o modo sem pedido.
+- `vs sync --dry-run`: mostra o que iria, sem enviar.
+- `vs list templates` e `vs add template <type:name>`: listam e aplicam
+  templates do hub. Use `--dry-run` antes; nunca use `--force` sem pedido.
+- Não peça curadoria (`--curate`) sem pedido: ela usa a chave de IA do hub.
 <!-- vs:fim -->
 
 ## Este projeto

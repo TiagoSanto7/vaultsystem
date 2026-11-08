@@ -154,12 +154,12 @@ def cli_vs(tela, tmp_path, monkeypatch):  # noqa: F811
 
 
 def test_cli_login_e_add_template(cli_vs, tmp_path, monkeypatch, capsys):
-    assert cli_vs.main(["templates"]) == 1 and "vs login" in capsys.readouterr().err
+    assert cli_vs.main(["list", "templates"]) == 1 and "vs login" in capsys.readouterr().err
     assert cli_vs.main(["login"]) == 0
     config = pathlib.Path(cli_vs.arquivo_config())
     assert stat.S_IMODE(config.stat().st_mode) == 0o600 and json.loads(config.read_text())["token"].startswith("vs_")
     capsys.readouterr()
-    assert cli_vs.main(["templates", "docker"]) == 0
+    assert cli_vs.main(["list", "templates", "type=docker"]) == 0
     linhas = capsys.readouterr().out.splitlines()
     assert "docker:python" in linhas[1] and "bloqueado" in linhas[0] and "bloqueado" not in linhas[1]
 
