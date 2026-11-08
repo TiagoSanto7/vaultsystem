@@ -1,0 +1,63 @@
+import io
+import zipfile
+
+from test_painel import entrar, tela  # noqa: F401
+
+
+def zip_de(arquivos):
+    pacote = io.BytesIO()
+    with zipfile.ZipFile(pacote, "w") as z:
+        for nome, dados in arquivos.items():
+            z.writestr(nome, dados)
+    return pacote.getvalue()
+
+
+def test_painel_e_cli_compartilham_catalogo(tela, tmp_path, monkeypatch):
+    from petro_vault import curadoria, estado, ingestao, literal
+
+    cliente, _, cred = tela
+    monkeypatch.setenv("VAULT_DIR", str(tmp_path / "vault"))
+    tag = "template-docker"
+    pacote = zip_de({"python/Dockerfile": "FROM python:3.12\n", "python/.env": "excluir"})
+    assert cliente.post(f"/v1/painel/envios/{tag}?modo=literal", content=pacote).status_code == 401
+    assert entrar(cliente).status_code == 200
+    r = cliente.post(f"/v1/painel/envios/{tag}?modo=literal", content=pacote)
+    assert r.status_code == 201, r.text
+    assert r.json()["arquivos"] == 1
+    leitura = {"Authorization": "Bearer " + cred.criar("leitura", [tag], [])}
+    escrita = {"Authorization": "Bearer " + cred.criar("escrita", [tag], [tag])}
+    assert cliente.put(f"/v1/sistemas/{tag}/envio", content=pacote, headers=leitura).status_code == 403
+    novo = zip_de({"python/Dockerfile": "FROM python:3.13\n"})
+    envio = cliente.put(f"/v1/sistemas/{tag}/envio", content=novo, headers=escrita)
+    assert envio.status_code == 200, envio.text
+    assert envio.json()["commit"] != r.json()["commit"]
+    (tmp_path / "vault" / "sistemas" / tag / "_meta").mkdir(parents=True)
+    with estado.conectar() as db:
+        ingestao.ingerir(db, {"tag": tag})
+        literal.copiar(db, tag)
+        curadoria.avancar(db, tag)
+    assert cliente.get("/v1/painel/cli").json() == cliente.get("/v1/templates", headers=leitura).json()
+    resposta = cliente.get("/v1/painel/cli/templates/docker/python")
+    assert resposta.status_code == 200, resposta.text
+    detalhe = resposta.json()
+    assert detalhe["id"] == "docker:python" and detalhe["files"][0]["path"] == "Dockerfile"
+    download = cliente.get("/v1/templates/docker/python.zip", headers=leitura)
+    assert download.status_code == 200, download.text
+    with zipfile.ZipFile(io.BytesIO(download.content)) as z:
+        assert z.namelist() == ["Dockerfile"]
+        assert z.read("Dockerfile") == b"FROM python:3.13\n"
+
+
+def test_cli_cria_vault_documentado_e_recusa_traversal(tela):
+    from petro_vault import estado, ingestao
+
+    cliente, _, cred = tela
+    tag = "meu-vault"
+    headers = {"Authorization": "Bearer " + cred.criar("autor", [tag], [tag])}
+    url = f"/v1/sistemas/{tag}/envio?modo=documentado"
+    assert cliente.put(url, content=zip_de({"../fora": "x"}), headers=headers).status_code == 400
+    r = cliente.put(url, content=zip_de({"src/main.py": "print('hello')\n"}), headers=headers)
+    assert r.status_code == 200, r.text
+    with estado.conectar() as db:
+        ingestao.ingerir(db, {"tag": tag})
+        assert db.execute("SELECT perfil FROM fila WHERE tag = ?", (tag,)).fetchone()[0] == "codigo"

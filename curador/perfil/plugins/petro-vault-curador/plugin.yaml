@@ -1,0 +1,6 @@
+name: petro-vault-curador
+version: "1.0.0"
+description: "Regras do curador do petro-vault: no lote da tag X e perfil P, lê só o lote, as regras, os modelos de P e sistemas/X/; escreve só nas pastas de P e no registro de X."
+author: petro-vault (DV-291)
+hooks:
+  - pre_tool_call

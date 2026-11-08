@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="300" viewBox="0 0 960 300" role="img" aria-labelledby="title">
+  <title id="title">Vault System. Conhecimento distribuído.</title>
+  <defs>
+    <linearGradient id="paper" x2="1" y2="1">
+      <stop stop-color="#fff"/>
+      <stop offset="1" stop-color="#eaf3ff"/>
+    </linearGradient>
+    <radialGradient id="halo">
+      <stop stop-color="#74b1ff" stop-opacity=".43"/>
+      <stop offset="1" stop-color="#74b1ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="1" y="1" width="958" height="298" rx="24" fill="url(#paper)" stroke="#cbdcf8"/>
+  <path d="M48 52h864M48 247h864" stroke="#d3e2fb"/>
+  <g font-family="Ubuntu, system-ui, sans-serif">
+    <text x="49" y="85" font-size="14" letter-spacing="3" fill="#0758ed">CONHECIMENTO ORBITAL</text>
+    <text x="45" y="161" font-size="67" font-weight="700" letter-spacing="-3" fill="#101e39">Vault System</text>
+    <text x="49" y="208" font-size="29" fill="#0758ed">Conhecimento distribuído.</text>
+    <text x="49" y="273" font-size="12" letter-spacing="2" fill="#485b7b">FONTES  /  RELAÇÕES  /  DISTRIBUIÇÃO</text>
+  </g>
+  <circle cx="725" cy="149" r="112" fill="url(#halo)"/>
+  <g fill="none" stroke="#a9c6fa">
+    <circle cx="725" cy="149" r="47"/><circle cx="725" cy="149" r="74"/><circle cx="725" cy="149" r="95"/>
+  </g>
+  <path d="M725 75Q785 102 725 149Q659 143 661 112M661 186Q680 141 725 149Q785 149 866 106M725 149Q785 149 866 192M725 223Q770 179 725 149" fill="none" stroke="#367cf0" stroke-width="1.6"/>
+  <g fill="#0758ed">
+    <circle cx="725" cy="75" r="5"/><circle cx="661" cy="112" r="5"/><circle cx="661" cy="186" r="5"/><circle cx="725" cy="223" r="5"/>
+    <circle cx="866" cy="106" r="5"/><circle cx="866" cy="192" r="5"/><circle cx="725" cy="149" r="19"/>
+  </g>
+  <circle cx="725" cy="149" r="6" fill="#fff"/>
+</svg>

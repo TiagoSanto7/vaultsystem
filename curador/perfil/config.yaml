@@ -1,0 +1,33 @@
+# Configuração do curador do petro-vault (DV-291). A curadoria copia este
+# arquivo para a pasta do Hermes do curador (HERMES_HOME) a cada lote.
+# Adaptado de hermes/curador/perfil/config.yaml do Petro Observer (DV-63).
+_config_version: 42
+
+model:
+  provider: anthropic
+  default: claude-sonnet-5
+
+# Sem fallback: um modelo fraco escrevendo no vault é pior do que esperar. Se
+# o Claude falhar, os itens ficam na fila para a próxima rodada.
+fallback_providers: []
+
+timezone: America/Cuiaba
+
+# Só arquivos: nada de terminal, web, MCP ou delegação. O plugin limita os
+# caminhos à tag do lote.
+toolsets: [file]
+
+plugins:
+  enabled: [petro-vault-curador]
+
+memory:
+  memory_enabled: false
+  user_profile_enabled: false
+
+auxiliary:
+  background_review:
+    enabled: false
+curator:
+  enabled: false
+display:
+  file_mutation_verifier: false

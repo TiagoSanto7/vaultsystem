@@ -1,0 +1,108 @@
+# petro-vault: serviço de conhecimento (épico DV-286). Arquitetura em
+# docs/arquitetura.md. Serviços:
+#   vault-init  clona ou atualiza o vault de conteúdo; roda uma vez por subida
+#   api         credencial → tags; cadastro de sistemas e pedidos de pull (DV-290)
+#   curador     ingestão das origens (DV-290), curadoria com LLM por tag
+#               (DV-291) e único que escreve no vault: base, publicar
+#
+# Nome do conjunto: COMPOSE_PROJECT_NAME no .env (homologação: petro-vault-<usuario>).
+# Nada aqui é compartilhado com o Petro Observer: volumes, rede e portas são próprios.
+
+services:
+  vault-init:
+    # Mesma imagem do curador (já tem git e ssh). Roda como root só para
+    # entregar os volumes ao usuário 10000.
+    image: ${HERMES_IMAGE:-nousresearch/hermes-agent:v2026.9.11}
+    user: "0:0"
+    entrypoint: ["/bin/sh", "/opt/petro-vault/iniciar-vault.sh"]
+    command: []
+    restart: "no"
+    environment:
+      VAULT_REPO: ${VAULT_REPO:?preencha VAULT_REPO no .env}
+    volumes:
+      - vault-dados:/opt/vault
+      - estado:/opt/estado
+      - curador:/opt/curador
+      - ./vault/iniciar.sh:/opt/petro-vault/iniciar-vault.sh:ro
+      - ${VAULT_DEPLOY_KEY_FILE:?preencha VAULT_DEPLOY_KEY_FILE no .env}:/run/vault-key:ro
+      # Chaves de deploy só leitura das origens, uma por tag (DV-290).
+      - ${VAULT_ORIGENS_CHAVES_DIR:?preencha VAULT_ORIGENS_CHAVES_DIR no .env}:/run/origens-chaves:ro
+      # Chave privada do GitHub App (DV-573). Sem ela, só as origens com chave de deploy são lidas.
+      - ${VAULT_GITHUB_APP_CHAVE_FILE:-/dev/null}:/run/github-app.pem:ro
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    image: petro-vault/api:dev
+    restart: unless-stopped
+    environment:
+      TZ: America/Cuiaba
+      # Tela (DV-547): login das pessoas pelo AD (os mesmos servidores do painel
+      # do Petro Observer; LDAPS com a CA em api/certs) e sessão em cookie
+      # assinado. Sem VAULT_SESSAO_SEGREDO a tela fica desligada; a API dos
+      # agentes (credencial pv_) segue igual.
+      LDAP_SERVERS: ${LDAP_SERVERS:-}
+      LDAP_DOMAIN: ${LDAP_DOMAIN:-}
+      VAULT_ADMINS: ${VAULT_ADMINS:-}
+      VAULT_SESSAO_SEGREDO: ${VAULT_SESSAO_SEGREDO:-}
+      VAULT_AMBIENTE: ${VAULT_AMBIENTE:-homologação}
+      VAULT_COOKIE_SEGURO: ${VAULT_COOKIE_SEGURO:-0}
+      # Endereço que aparece nos comandos do token criado (DV-599).
+      VAULT_URL_PUBLICA: ${VAULT_URL_PUBLICA:-http://10.2.2.31:8670}
+    volumes:
+      # Só o estado (credenciais, índice das notas e, para a aba Renderização,
+      # leitura dos clones bare das origens). A API não monta o vault nem a chave de deploy.
+      - estado:/opt/estado
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+    ports:
+      # Homologação: só na máquina local, para testes com curl. A porta 8660 é
+      # do painel do Petro Observer; o padrão aqui é 8670.
+      - "${API_BIND:-127.0.0.1}:${API_PORTA:-8670}:8000"
+
+  curador:
+    # Imagem do Hermes, fixada: o curador com LLM (DV-291) roda nela, com o
+    # perfil e o plugin de curador/perfil/.
+    image: ${HERMES_IMAGE:-nousresearch/hermes-agent:v2026.9.11}
+    restart: unless-stopped
+    user: "10000:10000"
+    entrypoint: ["/bin/sh", "/opt/petro-vault/curador/ciclo.sh"]
+    command: []
+    environment:
+      TZ: America/Cuiaba
+      VAULT_INTERVALO: ${VAULT_INTERVALO:-900}
+      VAULT_LIMITE_BYTES: ${VAULT_LIMITE_BYTES:-262144}
+      # Curadoria com LLM (DV-291): token próprio do curador do petro-vault
+      # (claude setup-token). Vazio: os itens ficam na fila e o log avisa.
+      CLAUDE_CODE_OAUTH_TOKEN: ${VAULT_CLAUDE_CODE_OAUTH_TOKEN:-}
+      HERMES_HOME: /opt/curador/hermes
+      VAULT_LOTE: ${VAULT_LOTE:-5}
+      VAULT_LOTES_MAX: ${VAULT_LOTES_MAX:-10}
+      VAULT_LOTE_CODIGO: ${VAULT_LOTE_CODIGO:-12}
+      VAULT_TENTATIVAS_MAX: ${VAULT_TENTATIVAS_MAX:-5}
+      VAULT_FALHAS_MAX: ${VAULT_FALHAS_MAX:-2}
+      # Curador em paralelo (DV-606): vaults ao mesmo tempo e lotes por vez de cada um.
+      VAULT_TRABALHADORES: ${VAULT_TRABALHADORES:-3}
+      VAULT_LOTES_POR_VEZ: ${VAULT_LOTES_POR_VEZ:-3}
+      # GitHub App (DV-573): lê as origens https://github.com/... sem chave de deploy.
+      VAULT_GITHUB_APP_ID: ${VAULT_GITHUB_APP_ID:-}
+      PYTHONPATH: /opt/petro-vault
+      ESTADO_DIR: /opt/estado
+    volumes:
+      - vault-dados:/opt/vault
+      - estado:/opt/estado
+      # Chaves de deploy (vault e origens) e known_hosts: só do curador.
+      - curador:/opt/curador
+      - ./curador:/opt/petro-vault/curador:ro
+      - ./petro_vault:/opt/petro-vault/petro_vault:ro
+      - ./vault-base:/opt/petro-vault/vault-base:ro
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+
+volumes:
+  vault-dados:
+  estado:
+  curador:
