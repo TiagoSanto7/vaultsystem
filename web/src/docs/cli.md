@@ -62,7 +62,7 @@ O `vs init` grava três coisas:
 - `VS.lock` (prévia) e a linha dele no `.gitignore`.
 
 Modos: **literal + documentado** (padrão) guarda os arquivos e importa as
-notas do agente. **Literal** (`modo=literal`) só guarda os arquivos; é o padrão
+notas do agente (`mode=documented`). **Literal** (`mode=literal`) só guarda os arquivos; é o padrão
 de um vault de template (`vault=template-<tipo>`).
 
 ## Documentar com o agente
@@ -100,7 +100,7 @@ com a verificação feita pelo código.
 `vs sync --dry-run` lista o que iria e marca com `*` as notas do agente.
 
 Um ZIP pronto também pode ir direto: `vs sync <vault> <arquivo.zip>
-modo=documentado`.
+mode=documented`.
 
 ## Templates
 
@@ -137,9 +137,9 @@ são refeitas a cada pedido; as notas do agente do projeto têm prioridade.
 vs login [url=<hub>]               conecta ao hub com o token de conexão
 vs logout                          apaga o token guardado
 vs whoami                          hub, token e dono do workspace
-vs init [nome] vault=<v> modo=<m>  liga a pasta a um vault
+vs init [nome] vault=<v> mode=<m>  liga a pasta a um vault
 vs sync [--dry-run]                envia a pasta ao vault do .vs
-vs sync <vault> <zip> [modo=…]     envia um ZIP pronto
+vs sync <vault> <zip> [mode=…]     envia um ZIP pronto
 vs templates [tipo]                lista os templates
 vs add template <tipo:nome>        aplica um template na pasta
 vs version                         esta versão e a do hub

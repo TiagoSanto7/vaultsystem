@@ -14,17 +14,17 @@ Comandos:
     vs templates [tipo]                lista os templates (de um tipo ou todos)
     vs init [nome]                     prepara a pasta: AGENTS.md, .vs (vínculo com o hub) e VS.lock
         vault=<nome>                   o vault desta pasta no hub (padrão: o nome da pasta)
-        modo=literal|documentado       padrão: documentado (vault template-*: literal)
+        mode=literal|documented        padrão: documented (vault template-*: literal)
     vs sync                            empacota a pasta e envia ao vault do .vs (cria no 1º envio)
         --dry-run                      só lista o que iria
         --curate                       pede a curadoria do Vault-I (precisa de chave de API no hub)
     vs sync <vault> <arquivo.zip>       envia um ZIP pronto para o vault
-        modo=literal|documentado      cria o vault ao enviar o primeiro snapshot
+        mode=literal|documented       cria o vault ao enviar o primeiro snapshot
     vs add template <tipo:nome>        baixa o template na pasta atual
         dir=<pasta>                    noutra pasta
         --dry-run                      só mostra o que faria
         --force                        sobrescreve o que já existe
-    vs repo conectar <url-ssh>         inicializa o Git e configura o remoto vault
+    vs repo connect <url-ssh>          inicializa o Git e configura o remoto vault
     vs version                         esta versão e a do servidor
     vs update                          baixa do hub a versão mais nova da CLI
     vs welcome                         o painel de boas-vindas (o comando vaultsystem)
@@ -59,7 +59,7 @@ INIT_PADRAO = """# AGENTS.md
 
 Este projeto está ligado a um vault no hub do Vault System (veja `.vs`). Quem
 envia é `vs sync`: ele empacota a pasta (respeitando o `.gitignore`) e manda
-para o hub. No modo **documentado**, as notas descritas aqui entram no vault
+para o hub. No modo **documented** (literal + documentado), as notas descritas aqui entram no vault
 **já curadas**, sem curador no hub. Mantenha as notas em dia sempre que mudar
 o que elas explicam.
 
@@ -324,7 +324,9 @@ def cmd_add(pos, params, flags):
 
 
 TAG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
-MODOS = ("literal", "documentado")
+MODOS = ("literal", "documented")
+# Como o hub chama cada modo.
+MODO_NO_HUB = {"literal": "literal", "documented": "documentado"}
 LIMITE_PACOTE = 10 * 1024 * 1024
 # Nunca vão no vs sync, mesmo fora do .gitignore (o hub também filtra segredos e chaves).
 FORA_DO_SYNC = {".git", ".vs", "vs.lock", ".vaultsystem", ".vaultsystem", "node_modules", ".venv", "venv",
@@ -337,14 +339,20 @@ def _nome_vault(texto):
 
 
 def cmd_init(pos, params, flags):
-    if len(pos) > 1 or set(params) - {"dir", "vault", "modo"} or flags - {"dry-run", "force", "json"}:
-        raise Erro(f"uso: {cli()} init [nome] [vault=<nome>] [modo=literal|documentado] [dir=<pasta>] "
+    if len(pos) > 1 or set(params) - {"dir", "vault", "mode"} or flags - {"dry-run", "force", "json"}:
+        raise Erro(f"uso: {cli()} init [nome] [vault=<nome>] [mode=literal|documented] [dir=<pasta>] "
                    "[--dry-run] [--force] [--json]")
     if params.get("vault") and not TAG.fullmatch(params["vault"]):
         raise Erro("nome de vault inválido: use minúsculas, números e hífen (ex.: meu-projeto)")
-    if params.get("modo") and params["modo"] not in MODOS:
-        raise Erro("modo inválido: use modo=literal ou modo=documentado")
+    if params.get("mode") and params["mode"] not in MODOS:
+        raise Erro("modo inválido: use mode=literal ou mode=documented")
     return _aplicar_template("init:" + (pos[0] if pos else "padrao"), params, flags, iniciar=True)
+
+
+def _modo_do_vs(vs):
+    """O modo gravado no .vs (aceita o formato antigo, com modo=documentado)."""
+    modo = vs.get("mode") or {"documentado": "documented"}.get(vs.get("modo"), vs.get("modo"))
+    return modo if modo in MODOS else None
 
 
 def _ler_vs(raiz):
@@ -422,7 +430,7 @@ def _e_nota(caminho):
 
 
 def _enviar(tag, pacote, modo, curar=False):
-    query = "&".join(q for q in (f"modo={modo}" if modo else "", "curar=true" if curar else "") if q)
+    query = "&".join(q for q in (f"mode={modo}" if modo else "", "curate=true" if curar else "") if q)
     return pedir(f"/v1/sistemas/{tag}/envio", token(), pacote=pacote, query=f"?{query}" if query else None)
 
 
@@ -438,17 +446,17 @@ def _texto_curadoria(r):
 def cmd_sync(pos, params, flags):
     if not pos:
         return _sync_projeto(params, flags)
-    modo = params.get("modo")
-    if (len(pos) != 2 or set(params) - {"modo"} or modo not in (None, *MODOS)
+    modo = params.get("mode")
+    if (len(pos) != 2 or set(params) - {"mode"} or modo not in (None, *MODOS)
             or flags - {"json", "curate"} or not TAG.fullmatch(pos[0])):
         raise Erro(f"uso: {cli()} sync [--dry-run] [--curate]   (na pasta preparada pelo {cli()} init)\n"
-                   f"  ou: {cli()} sync <vault> <arquivo.zip> [modo=literal|documentado] [--curate] [--json]")
+                   f"  ou: {cli()} sync <vault> <arquivo.zip> [mode=literal|documented] [--curate] [--json]")
     tag, caminho = pos
     with open(caminho, "rb") as f:
         pacote = f.read(LIMITE_PACOTE + 1)
     if len(pacote) > LIMITE_PACOTE or not zipfile.is_zipfile(io.BytesIO(pacote)):
         raise Erro("informe um ZIP válido de até 10 MB")
-    r = _enviar(tag, pacote, modo, "curate" in flags)
+    r = _enviar(tag, pacote, MODO_NO_HUB.get(modo), "curate" in flags)
     saida(r, "json" in flags, f"Snapshot recebido: {r['arquivos']} arquivo(s) · {r['commit'][:12]}. "
                               f"Processamento solicitado.{_texto_curadoria(r)}")
 
@@ -460,9 +468,9 @@ def _sync_projeto(params, flags):
     vs = _ler_vs(raiz)
     if vs is None:
         raise Erro(f"esta pasta não tem .vs: rode {cli()} init vault=<nome> primeiro")
-    tag, modo = vs.get("vault"), vs.get("modo")
+    tag, modo = vs.get("vault"), _modo_do_vs(vs)
     if not isinstance(tag, str) or not TAG.fullmatch(tag) or modo not in MODOS:
-        raise Erro(f"o .vs não diz o vault e o modo: rode {cli()} init vault=<nome> modo=literal|documentado")
+        raise Erro(f"o .vs não diz o vault e o modo: rode {cli()} init vault=<nome> mode=literal|documented")
     hub = url_base()
     if vs.get("hub") and hub and vs["hub"].rstrip("/") != hub:
         raise Erro(f"esta pasta está ligada ao hub {vs['hub']}, e o login atual é de {hub}: "
@@ -472,18 +480,18 @@ def _sync_projeto(params, flags):
         raise Erro("nada para enviar nesta pasta")
     notas = [n for n in nomes if n.lower().endswith(".md") and _e_nota(os.path.join(raiz, *n.split("/")))]
     if "dry-run" in flags:
-        r = {"vault": tag, "modo": modo, "hub": hub, "arquivos": nomes, "notas_do_agente": notas, "dry_run": True}
+        r = {"vault": tag, "mode": modo, "hub": hub, "arquivos": nomes, "notas_do_agente": notas, "dry_run": True}
         saida(r, "json" in flags,
               f"Simulação: {len(nomes)} arquivo(s) para {tag} ({modo}) em {hub or '(sem hub)'}\n"
               + "\n".join(f"  {'*' if n in notas else ' '} {n}" for n in nomes)
-              + (f"\n* nota do agente ({len(notas)}): entra curada no modo documentado" if notas else "")
+              + (f"\n* nota do agente ({len(notas)}): entra curada no modo documented" if notas else "")
               + "\nNada foi enviado (--dry-run).")
         return 0
-    r = _enviar(tag, _empacotar(raiz, nomes), modo, "curate" in flags)
-    r.update({"vault": tag, "modo": modo, "notas_do_agente": len(notas)})
+    r = _enviar(tag, _empacotar(raiz, nomes), MODO_NO_HUB[modo], "curate" in flags)
+    r.update({"vault": tag, "mode": modo, "notas_do_agente": len(notas)})
     saida(r, "json" in flags,
           f"Enviado para {tag} ({modo}): {r['arquivos']} arquivo(s) · revisão {r['commit'][:12]}"
-          + (f" · {len(notas)} nota(s) do agente" if notas and modo == "documentado" else "")
+          + (f" · {len(notas)} nota(s) do agente" if notas and modo == "documented" else "")
           + f".\nO hub processa em instantes: {hub}/sistemas/{tag}" + _texto_curadoria(r))
     return 0
 
@@ -517,21 +525,23 @@ def _aplicar_template(ident, params, flags, iniciar=False):
                     raise Erro("configure uma URL HTTP(S) do hub sem credenciais ou parâmetros")
             anterior = _ler_vs(destino) or {}
             vault = params.get("vault") or anterior.get("vault") or _nome_vault(os.path.basename(destino))
-            modo_vault = params.get("modo") or anterior.get("modo") or (
-                "literal" if vault.startswith("template-") else "documentado")
+            modo_vault = params.get("mode") or _modo_do_vs(anterior) or (
+                "literal" if vault.startswith("template-") else "documented")
             conexao = None
             if hub and not simular:
                 try:
                     eu = pedir("/v1/eu", token())
-                    conexao = {"dono": eu.get("dono"), "credencial": eu.get("credencial"),
+                    conexao = {"owner": eu.get("dono"), "token": eu.get("credencial"),
                                "workspace": bool(eu.get("workspace"))}
                 except Erro as e:
                     print(f"{cli()}: aviso: sem conexão com o hub agora ({e}); o vínculo fica só com o endereço",
                           file=sys.stderr)
-            manifesto = {**anterior, "versao": 2, "projeto": os.path.basename(destino), "hub": hub or None,
-                         "vault": vault, "modo": modo_vault, "conexao": conexao or anterior.get("conexao")}
+            anterior = {k: v for k, v in anterior.items() if k not in ("versao", "projeto", "modo", "conexao")}
+            manifesto = {**anterior, "version": 3, "project": os.path.basename(destino), "hub": hub or None,
+                         "vault": vault, "mode": modo_vault,
+                         "connection": conexao or anterior.get("connection")}
             gerenciados = {".vs": json.dumps(manifesto, ensure_ascii=False, indent=2) + "\n",
-                          "VS.lock": "# Prévia do Vault System. A CLI ainda não consome este arquivo.\nversao = 0\n"}
+                          "VS.lock": "# Prévia do Vault System. A CLI ainda não consome este arquivo.\nversion = 0\n"}
             gi = _alvo(destino, ".gitignore")
             try:
                 with open(gi, encoding="utf-8") as f:
@@ -622,10 +632,10 @@ def _aplicar_template(ident, params, flags, iniciar=False):
 
     marca = {"novo": "+", "sobrescreve": "~", "igual": "=", "mantido": "=", "acrescenta": "+", "atualiza": "~"}
     if iniciar:
-        resultado.update({"vault": manifesto["vault"], "modo": manifesto["modo"], "hub": manifesto["hub"]})
-    vinculo = (f"\nProjeto ligado ao vault {manifesto['vault']} ({manifesto['modo']})"
+        resultado.update({"vault": manifesto["vault"], "mode": manifesto["mode"], "hub": manifesto["hub"]})
+    vinculo = (f"\nProjeto ligado ao vault {manifesto['vault']} ({manifesto['mode']})"
                + (f" no hub {manifesto['hub']}" if manifesto["hub"] else " (sem hub: rode vs login)")
-               + (f", workspace de {manifesto['conexao']['dono']}" if (manifesto.get("conexao") or {}).get("dono") else "")
+               + (f", workspace de {manifesto['connection']['owner']}" if (manifesto.get("connection") or {}).get("owner") else "")
                + f".\nPróximo passo: documente seguindo o AGENTS.md e rode {cli()} sync.") if iniciar else ""
     texto = (f"{'Simulação: ' if simular else ''}{ident} @ {commit[:7]} -> {destino}\n"
              + "\n".join(f"  {marca[p['acao']]} {p['path']}" for p in plano)
@@ -722,8 +732,8 @@ def cmd_ajuda(pos, params, flags):
 
 
 def cmd_repo(pos, params, flags):
-    if len(pos) != 2 or pos[0] != "conectar" or params or flags - {"json"}:
-        raise Erro("use vs repo conectar ssh://git@servidor/projetos/demo.git")
+    if len(pos) != 2 or pos[0] != "connect" or params or flags - {"json"}:
+        raise Erro("use vs repo connect ssh://git@servidor/projetos/demo.git")
     url = pos[1]
     if not re.fullmatch(r"(?:git@[A-Za-z0-9.-]+:|ssh://git@[A-Za-z0-9.-]+(?::[0-9]+)?/)[A-Za-z0-9._/-]+", url):
         raise Erro("informe a URL SSH do repositório com o usuário git")
@@ -762,7 +772,7 @@ COMANDOS = {"login": cmd_login, "logout": cmd_logout, "whoami": cmd_whoami, "tem
             "sync": cmd_sync,
             "repo": cmd_repo,
             "update": cmd_update, "welcome": cmd_welcome,
-            "versao": cmd_versao, "version": cmd_versao, "ajuda": cmd_ajuda, "help": cmd_ajuda}
+            "version": cmd_versao, "help": cmd_ajuda}
 
 
 def main(argv=None):
@@ -776,7 +786,7 @@ def main(argv=None):
         cmd_ajuda([], {}, set())
         return 0
     if argv[0] == "--version":
-        argv = ["versao"]
+        argv = ["version"]
     comando = COMANDOS.get(argv[0])
     if not comando:
         print(f"{cli()}: comando desconhecido: {argv[0]} (veja {cli()} help)", file=sys.stderr)
