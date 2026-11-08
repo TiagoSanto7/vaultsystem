@@ -22,7 +22,7 @@ http://127.0.0.1:8790.
 1. Entre no hub e crie um **token de conexão** na aba Tokens.
 2. No terminal: `vs login url=http://127.0.0.1:8790` e cole o token.
 3. Na pasta do projeto: `vs init vault=<nome>` (modo padrão: literal +
-   documentado; `modo=literal` só copia os arquivos). Isso grava o `.vs`
+   documentado, `mode=documented`; `mode=literal` só copia os arquivos). Isso grava o `.vs`
    (vínculo com o hub e o dono do workspace) e o protocolo no `AGENTS.md`.
 4. O agente escreve as notas seguindo o `AGENTS.md` (cabeçalho `vs:`).
 5. `vs sync` envia. O primeiro envio cria o vault; as notas entram já curadas.

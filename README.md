@@ -39,7 +39,7 @@ O **hub** é o servidor do seu workspace: guarda os vaults, mostra as notas e em
    - Windows: `irm <hub>/v1/cli/install.ps1 | iex`
    - Linux, macOS e WSL: `curl -fsSL <hub>/v1/cli/install.sh | sh`
 2. **Conectar.** Na aba Tokens, crie um **token de conexão** e rode `vs login`. O token fica guardado só no seu usuário (`~/.config/vaultsystem/config.json`). `vs whoami` mostra o hub e o dono do workspace.
-3. **Ligar a pasta.** `vs init vault=meu-projeto` grava o vínculo em `.vs` e acrescenta ao `AGENTS.md` o protocolo de documentação. O modo padrão é **literal + documentado**; `modo=literal` só guarda os arquivos.
+3. **Ligar a pasta.** `vs init vault=meu-projeto` grava o vínculo em `.vs` e acrescenta ao `AGENTS.md` o protocolo de documentação. O modo padrão é **literal + documentado** (`mode=documented`); `mode=literal` só guarda os arquivos.
 4. **Documentar.** O agente do projeto (Claude Code, Codex ou outro) lê o `AGENTS.md` e escreve uma nota por assunto, com o tipo e os arquivos de origem no cabeçalho.
 5. **Enviar.** `vs sync` empacota a pasta, respeitando o `.gitignore` (`.env`, `node_modules` e afins nunca vão), e envia. O primeiro envio cria o vault. Os arquivos entram como estão e as notas do agente entram **já curadas**, ligadas à origem. Arquivo com cara de segredo bloqueia o envio.
 6. **Distribuir.** O conhecimento do vault fica disponível para:

@@ -11,5 +11,5 @@ powershell.exe -NoLogo -NoProfile -Command ^
   "Write-Host $edge -ForegroundColor DarkBlue;" ^
   "for ($i = 0; $i -lt $logo.Count; $i++) { Write-Host '|  ' -NoNewline -ForegroundColor DarkBlue; Write-Host ($logo[$i].PadRight($logoWidth)) -NoNewline -ForegroundColor Cyan; $color = if ($i -eq 0) {'Cyan'} else {'Gray'}; Write-Host ($info[$i].PadRight($width) + '  ') -NoNewline -ForegroundColor $color; Write-Host '|' -ForegroundColor DarkBlue };" ^
   "Write-Host $edge -ForegroundColor DarkBlue; Write-Host ''; Write-Host '  Para comecar  [comandos da previa]' -ForegroundColor Cyan;" ^
-  "@('vs login', 'vs init', 'vs add template docker:python', 'vs ajuda') | ForEach-Object { Write-Host ('    > ' + $_) }"
+  "@('vs login', 'vs init', 'vs add template docker:python', 'vs help') | ForEach-Object { Write-Host ('    > ' + $_) }"
 exit /b %errorlevel%
