@@ -24,7 +24,8 @@ from . import agente, estado, filtros, historico, ingestao, literal, notas
 CHAVE_CONFIG = "vault_i"
 CURADA_POR = "vault-i"
 PROVEDORES = {
-    "anthropic": {"nome": "Claude (Anthropic)", "modelo": "claude-opus-5-5"},
+    "anthropic": {"nome": "Claude (chave de API)", "modelo": "claude-opus-5-5"},
+    "claude-code": {"nome": "Claude (token do claude setup-token)", "modelo": "claude-opus-5-5"},
     "openai": {"nome": "OpenAI (Codex)", "modelo": "gpt-5"},
 }
 LIMITE_ARQUIVO = 60 * 1024        # arquivo maior fica de fora (registrado no detalhe)
@@ -120,6 +121,10 @@ def salvar(db, provedor, modelo, chave, por):
         chave = atual["chave"]
     if len(chave) < 20 or any(c.isspace() for c in chave):
         raise ValueError("essa chave não parece uma chave de API")
+    if provedor == "claude-code" and not chave.startswith("sk-ant-oat"):
+        raise ValueError("esse não parece um token do claude setup-token (começa com sk-ant-oat)")
+    if provedor == "anthropic" and chave.startswith("sk-ant-oat"):
+        raise ValueError("isso é um token do claude setup-token: escolha o provedor Claude (token do claude setup-token)")
     with db:
         db.execute("INSERT INTO configuracoes (chave, valor, atualizado_em, atualizado_por) VALUES (?, ?, ?, ?) "
                    "ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor, atualizado_em = excluded.atualizado_em, "
@@ -249,12 +254,61 @@ def chamar(config, pedido):
         except openai.APIConnectionError:
             raise RuntimeError("sem conexão com a API da OpenAI") from None
         texto = r.output_text
+    elif config["provedor"] == "claude-code":
+        texto = _claude_code(config, pedido)
     else:
         raise RuntimeError(f"provedor desconhecido: {config['provedor']}")
     try:
-        return json.loads(texto)["notas"]
+        return json.loads(_so_json(texto))["notas"]
     except (ValueError, KeyError, TypeError):
         raise RuntimeError("o modelo não devolveu o JSON esperado") from None
+
+
+def _so_json(texto):
+    """O objeto JSON da resposta, mesmo que venha entre cercas de código ou com texto em volta."""
+    texto = (texto or "").strip()
+    m = re.search(r"```(?:json)?\s*(\{.*\})\s*```", texto, re.S)
+    if m:
+        return m.group(1)
+    i, j = texto.find("{"), texto.rfind("}")
+    return texto[i:j + 1] if i >= 0 and j > i else texto
+
+
+CLAUDE_BIN = os.environ.get("VAULT_I_CLAUDE_BIN", "claude")
+SEM_FERRAMENTAS = "Bash,Edit,Write,MultiEdit,NotebookEdit,Read,Glob,Grep,LS,WebFetch,WebSearch,Task,TodoWrite"
+
+
+def _claude_code(config, pedido):
+    """Token do `claude setup-token`: roda a CLI oficial do Claude Code em modo não interativo (`claude -p`),
+    numa pasta vazia e sem ferramentas, só para gerar o JSON das notas."""
+    import subprocess
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix="vault-i-") as pasta:
+        env = {**os.environ, "CLAUDE_CODE_OAUTH_TOKEN": config["chave"], "HOME": pasta,
+               "DISABLE_AUTOUPDATER": "1", "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"}
+        env.pop("ANTHROPIC_API_KEY", None)  # a chave de API teria precedência sobre o token
+        instrucao = (SISTEMA + "\n\nResponda só com um objeto JSON neste esquema, sem texto antes ou depois:\n"
+                     + json.dumps(ESQUEMA, ensure_ascii=False))
+        try:
+            r = subprocess.run([CLAUDE_BIN, "-p", "--output-format", "json", "--model", config["modelo"],
+                                "--system-prompt", instrucao, "--disallowedTools", SEM_FERRAMENTAS],
+                               input=pedido, capture_output=True, text=True, encoding="utf-8", cwd=pasta, env=env,
+                               timeout=int(os.environ.get("VAULT_I_TEMPO_MAX", "900")))
+        except FileNotFoundError:
+            raise RuntimeError("a CLI do Claude Code não está instalada no curador") from None
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("o Claude Code passou do tempo máximo") from None
+    try:
+        saida = json.loads(r.stdout)
+    except ValueError:
+        detalhe = (r.stderr or r.stdout or "").strip().splitlines()[-1:] or ["sem saída"]
+        raise RuntimeError(f"o Claude Code falhou: {detalhe[0][:200]}") from None
+    if saida.get("is_error"):
+        texto = str(saida.get("result") or saida.get("subtype") or "erro")
+        if any(p in texto.lower() for p in ("invalid api key", "oauth", "unauthorized", "401", "authentication")):
+            raise RuntimeError("token do claude setup-token recusado")
+        raise RuntimeError(f"o Claude Code respondeu com erro: {texto[:200]}")
+    return saida.get("result") or ""
 
 
 # --- escrever ---------------------------------------------------------------------------
