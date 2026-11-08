@@ -148,7 +148,7 @@ function ConexaoCriada({ chave, fechar }: { chave: string; fechar: () => void })
       <h3 className="token-passo">1. Conecte o terminal ao hub (cole o token quando pedir)</h3>
       <Copiavel id="cmd-login" texto={`vs login url=${url}`} rotulo="Comando vs login" />
       <h3 className="token-passo">2. Na pasta do projeto, ligue-a a um vault</h3>
-      <Copiavel id="cmd-init" texto="vs init vault meu-projeto" rotulo="Comando vs init" />
+      <Copiavel id="cmd-init" texto="vs init vault=meu-projeto" rotulo="Comando vs init" />
       <h3 className="token-passo">3. Documente com o agente (veja o AGENTS.md) e envie</h3>
       <Copiavel id="cmd-sync" texto="vs sync" rotulo="Comando vs sync" />
       <p className="muted" style={{ margin: "14px 0 0", fontSize: 13 }}>O primeiro <code>vs sync</code> cria o vault no modo do <code>.vs</code> (literal + documentado, por padrão). As notas que o agente escreveu entram já curadas.</p>
