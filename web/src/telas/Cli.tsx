@@ -48,7 +48,7 @@ export default function Cli() {
       <div className="panel-head"><h2>Fluxo principal</h2><Link className="textbtn" to="/tokens">Criar token de conexão</Link></div>
       <div className="panel-body"><ol>
         <li><code>vs login</code> conecta o terminal ao seu workspace com o token de conexão (aba Tokens).</li>
-        <li><code>vs init vault=&lt;nome&gt;</code> liga a pasta a um vault: grava o vínculo em <code>.vs</code> e o protocolo de documentação no <code>AGENTS.md</code>. Padrão: literal + documentado; <code>mode=literal</code> só copia os arquivos.</li>
+        <li><code>vs init vault=&lt;nome&gt;</code> (ou <code>vs init template=&lt;tipo&gt;</code>) liga a pasta a um vault: grava o vínculo em <code>.vs</code> e o protocolo de documentação no <code>AGENTS.md</code>. Padrão: literal + documentado; <code>mode=literal</code> só copia os arquivos.</li>
         <li>O agente do projeto escreve as notas seguindo o <code>AGENTS.md</code> (cabeçalho <code>vs:</code>, com as origens).</li>
         <li><code>vs sync</code> empacota a pasta (respeita o <code>.gitignore</code>) e envia. O primeiro envio cria o vault; as notas do agente entram já curadas. <code>--dry-run</code> mostra o que iria.</li>
       </ol></div>
@@ -58,8 +58,10 @@ export default function Cli() {
       <div className="panel-body"><ul>
         <li><code>vaultsystem</code> abre o painel no terminal.</li>
         <li><code>vs whoami</code> mostra o hub, o token e o dono do workspace.</li>
-        <li><code>vs init &lt;nome&gt;</code> aplica um pacote de inicialização do hub.</li>
-        <li><code>vs sync &lt;vault&gt; &lt;arquivo.zip&gt;</code> envia um ZIP pronto para um vault.</li>
+        <li><code>vs init package=&lt;nome&gt;</code> aplica um pacote de inicialização do hub.</li>
+        <li><code>vs sync vault=&lt;nome&gt; file=&lt;arquivo.zip&gt;</code> envia um ZIP pronto para um vault.</li>
+        <li><code>vs list templates</code> lista os templates do hub.</li>
+        <li><code>vs connect repo &lt;url-ssh&gt;</code> liga a pasta a um repositório Git (opcional).</li>
         <li><code>vs add template &lt;tipo:nome&gt;</code> aplica os arquivos na pasta atual. Use <code>--dry-run</code> para simular.</li>
       </ul></div>
     </section>
@@ -76,7 +78,7 @@ export default function Cli() {
           <p>{t.descricao || "Pacote publicado no hub."} · {t.arquivos} arquivo(s) · <code>{t.commit.slice(0, 12)}</code></p>
           {aberto === t.id && <>
             <Link to={`/sistemas/${encodeURIComponent(t.vault)}`}>Vault de origem</Link>
-            {t.bloqueado ? <p>{t.bloqueado}</p> : <p><code>{t.tipo === "init" ? `vs init ${t.nome}` : `vs add template ${t.id}`}</code></p>}
+            {t.bloqueado ? <p>{t.bloqueado}</p> : <p><code>{t.tipo === "init" ? `vs init package=${t.nome}` : `vs add template ${t.id}`}</code></p>}
             <Arquivos template={t} />
           </>}
         </article>)}

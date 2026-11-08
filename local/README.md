@@ -30,7 +30,7 @@ http://127.0.0.1:8790.
 
 Exemplo pronto: `exemplos/template-design` é o template `design:default` (o
 design system do Vault System, com 9 notas). Nessa pasta, rode
-`vs init vault=template-design` e `vs sync`; depois, em outra pasta,
+`vs init template=design` e `vs sync`; depois, em outra pasta,
 `vs add template design:default`.
 
 ## Curadoria interna (Vault-I)

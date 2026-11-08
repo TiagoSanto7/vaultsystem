@@ -92,7 +92,7 @@ export default function Cadastrar() {
       {fonte === "envio" ? <>
         <label htmlFor="pacote-vault">Pacote ZIP de até 10 MB</label>
         <input id="pacote-vault" type="file" accept=".zip,application/zip" required onChange={e => setPacote(e.target.files?.[0])} />
-        <p>Também pode fazer o primeiro envio no terminal com <code>vs sync {tag || "meu-projeto"} pacote.zip mode={modo === "documentado" ? "documented" : "literal"}</code>.</p>
+        <p>Também pode fazer o primeiro envio no terminal com <code>vs sync vault={tag || "meu-projeto"} file=pacote.zip mode={modo === "documentado" ? "documented" : "literal"}</code>.</p>
       </> : <>
         {origens.map((o, i) => <section key={i} style={{ marginTop: 20 }}>
           <h2 style={{ fontSize: 16 }}>{i === 0 ? "Repositório principal" : `Repositório ${i + 1}`}</h2>
