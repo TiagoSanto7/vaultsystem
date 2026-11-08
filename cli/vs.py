@@ -12,14 +12,14 @@ Commands:
     vs logout                          remove the saved token
     vs whoami                          show the hub, the token and the workspace owner
     vs templates [type]                list templates (one type or all)
-    vs init vault <name>               link this folder to a vault: AGENTS.md, .vs and VS.lock
-    vs init template <type>            link this folder to the template vault template-<type>;
+    vs init vault=<name>               link this folder to a vault: AGENTS.md, .vs and VS.lock
+    vs init template=<type>            link this folder to the template vault template-<type>;
                                        each subfolder is one template (<type>:<folder>)
         mode=literal|documented        default: documented for a vault, literal for a template
     vs init [package]                  only apply an init package (default: the local one)
     vs sync                            package this folder and send it to the vault in .vs (creates it on first sync)
-    vs sync vault <name>               send this folder to that vault instead
-    vs sync template <type>            send this folder to template-<type> instead
+    vs sync vault=<name>               send this folder to that vault instead
+    vs sync template=<type>            send this folder to template-<type> instead
         --dry-run                      only list what would be sent
         --curate                       ask Vault-I to curate (needs an API key on the hub)
     vs sync <vault> <file.zip>         send a ready-made ZIP to a vault
@@ -357,12 +357,20 @@ def _alvo_nomeado(tipo, nome):
 
 def cmd_init(pos, params, flags):
     if pos and pos[0] in TIPOS_ALVO:
-        if len(pos) != 2 or params.get("vault"):
-            raise Erro(f"uso: {cli()} init vault <name> | {cli()} init template <type> [mode=literal|documented]")
-        params = {**params, "vault": _alvo_nomeado(pos[0], pos[1])}
+        if len(pos) != 2 or params.get("vault") or params.get("template"):
+            raise Erro(f"uso: {cli()} init vault=<name> | {cli()} init template=<type> [mode=literal|documented]")
+        params = {**params, pos[0]: pos[1]}
         pos = []
+    if params.get("vault") and params.get("template"):
+        raise Erro(f"use vault=<name> ou template=<type>, não os dois")
+    if params.get("vault"):
+        params = {**params, "vault": _alvo_nomeado("vault", params["vault"])}
+    if params.get("template"):
+        tipo = params["template"]
+        params = {k: v for k, v in params.items() if k != "template"}
+        params["vault"] = _alvo_nomeado("template", tipo)
     if len(pos) > 1 or set(params) - {"dir", "vault", "mode"} or flags - {"dry-run", "force", "json"}:
-        raise Erro(f"uso: {cli()} init vault <name> | {cli()} init template <type> [mode=literal|documented] "
+        raise Erro(f"uso: {cli()} init vault=<name> | {cli()} init template=<type> [mode=literal|documented] "
                    "[dir=<folder>] [--dry-run] [--force] [--json]")
     if params.get("vault") and not TAG.fullmatch(params["vault"]):
         raise Erro("nome de vault inválido: use minúsculas, números e hífen (ex.: meu-projeto)")
@@ -466,11 +474,17 @@ def _texto_curadoria(r):
 
 
 def cmd_sync(pos, params, flags):
+    if not pos and (params.get("vault") or params.get("template")):
+        if params.get("vault") and params.get("template"):
+            raise Erro("use vault=<name> ou template=<type>, não os dois")
+        tipo = "vault" if params.get("vault") else "template"
+        alvo = (tipo, _alvo_nomeado(tipo, params[tipo]))
+        return _sync_projeto({k: v for k, v in params.items() if k not in TIPOS_ALVO}, flags, alvo=alvo)
     if not pos:
         return _sync_projeto(params, flags)
     if pos[0] in TIPOS_ALVO:
         if len(pos) != 2:
-            raise Erro(f"uso: {cli()} sync vault <name> | {cli()} sync template <type> [--dry-run] [--curate]")
+            raise Erro(f"uso: {cli()} sync vault=<name> | {cli()} sync template=<type> [--dry-run] [--curate]")
         return _sync_projeto(params, flags, alvo=(pos[0], _alvo_nomeado(pos[0], pos[1])))
     modo = params.get("mode")
     if (len(pos) != 2 or set(params) - {"mode"} or modo not in (None, *MODOS)
@@ -489,7 +503,7 @@ def cmd_sync(pos, params, flags):
 
 def _sync_projeto(params, flags, alvo=None):
     if set(params) - {"dir", "mode"} or flags - {"json", "dry-run", "curate"} or (params.get("mode") and not alvo):
-        raise Erro(f"uso: {cli()} sync [vault <name> | template <type>] [dir=<folder>] [--dry-run] [--curate] [--json]")
+        raise Erro(f"uso: {cli()} sync [vault=<name> | template=<type>] [dir=<folder>] [--dry-run] [--curate] [--json]")
     if params.get("mode") and params["mode"] not in MODOS:
         raise Erro("modo inválido: use mode=literal ou mode=documented")
     raiz = os.path.abspath(params.get("dir") or ".")
@@ -501,10 +515,10 @@ def _sync_projeto(params, flags, alvo=None):
         vs = {**(vs or {}), "vault": tag,
               "mode": params.get("mode") or do_vs or ("literal" if tipo == "template" else "documented")}
     if vs is None:
-        raise Erro(f"esta pasta não tem .vs: rode {cli()} init vault <name> (ou {cli()} sync vault <name>)")
+        raise Erro(f"esta pasta não tem .vs: rode {cli()} init vault=<name> (ou {cli()} sync vault=<name>)")
     tag, modo = vs.get("vault"), _modo_do_vs(vs)
     if not isinstance(tag, str) or not TAG.fullmatch(tag) or modo not in MODOS:
-        raise Erro(f"o .vs não diz o vault e o modo: rode {cli()} init vault <name> (ou template <type>)")
+        raise Erro(f"o .vs não diz o vault e o modo: rode {cli()} init vault=<name> (ou template=<type>)")
     hub = url_base()
     if vs.get("hub") and hub and vs["hub"].rstrip("/") != hub:
         raise Erro(f"esta pasta está ligada ao hub {vs['hub']}, e o login atual é de {hub}: "
@@ -754,7 +768,7 @@ def cmd_welcome(pos, params, flags):
     for i, l in enumerate(LOGO):
         linhas.append(f"{azul}|  {fim}{ciano}{l.ljust(lw)}{fim}{(ciano if i == 0 else cinza)}{info[i].ljust(w)}  {fim}{azul}|{fim}")
     linhas += [azul + borda + fim, "", f"{ciano}  Para começar{fim}"]
-    passos = ["vs login", "vs init vault <name>", "vs sync", "vs add template design:default", "vs help"]
+    passos = ["vs login", "vs init vault=<name>", "vs sync", "vs add template design:default", "vs help"]
     linhas += [f"    > {p}" for p in passos]
     saida({"versao": VERSAO, "hub": url_base() or None, "sessao": sessao}, "json" in flags, "\n".join(linhas))
     return 0
