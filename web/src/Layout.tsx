@@ -18,6 +18,10 @@ function Migalhas() {
     itens.push({ rotulo: "Tokens" });
   } else if (partes[0] === "docs") {
     itens.push({ rotulo: "Docs" });
+  } else if (partes[0] === "cli") {
+    itens.push({ rotulo: "VS CLI" });
+  } else if (partes[0] === "configuracoes") {
+    itens.push({ rotulo: "Configurações" });
   } else {
     itens.push({ rotulo: "Início" });
   }
