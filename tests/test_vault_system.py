@@ -242,7 +242,7 @@ def test_vs_init_e_sync_dry_run(tmp_path):
     r = _vs(["init"], projeto, env)
     assert r.returncode == 0, r.stderr
     vs = json.loads((projeto / ".vs").read_text())
-    assert vs["vault"] == "meu-projeto" and vs["mode"] == "documented" and vs["version"] == 3
+    assert vs["vault"] is None and vs["mode"] == "documented" and vs["version"] == 3  # vs init sem vault= não liga a nada
     agents = (projeto / "AGENTS.md").read_text(encoding="utf-8")
     assert agents.startswith("# AGENTS.md\n\n<!-- vs:inicio") and "Regras minhas." in agents  # só a seção gerenciada
     assert _vs(["init", "vault=Outro_Nome"], projeto, env).returncode == 1
@@ -299,7 +299,7 @@ def test_cli_so_com_nomes_em_ingles(tmp_path):
     for velho in ("versao", "ajuda"):
         assert _vs([velho], tmp_path, env).returncode == 2
     ajuda = _vs(["help"], tmp_path, env).stdout
-    assert "mode=literal|documented" in ajuda and "repo connect" in ajuda and "modo=" not in ajuda
+    assert "mode=literal|documented" in ajuda and "connect repo" in ajuda and "modo=" not in ajuda
 
 
 TOKEN_SETUP = "sk-ant-oat01-" + "y" * 40
@@ -364,3 +364,83 @@ def test_template_leva_arquivos_de_audio(tela, tmp_path, monkeypatch):
     assert z.status_code == 200, z.text
     with zipfile.ZipFile(io.BytesIO(z.content)) as arq:
         assert arq.read("public/sfx/key.mp3") == som
+
+
+def test_vs_init_e_sync_por_vault_ou_template(tmp_path):
+    env = {**os.environ, "VS_CLI": "1", "XDG_CONFIG_HOME": str(tmp_path / "cfg"), "VS_URL": "", "PYTHONUTF8": "1"}
+    env.pop("VS_TOKEN", None)
+    (tmp_path / "t").mkdir()
+    assert _vs(["init", "template=design"], tmp_path / "t", env).returncode == 0
+    vs = json.loads((tmp_path / "t" / ".vs").read_text())
+    assert vs["vault"] == "template-design" and vs["mode"] == "literal"
+    (tmp_path / "v").mkdir()
+    assert _vs(["init", "vault=my-project"], tmp_path / "v", env).returncode == 0
+    vs = json.loads((tmp_path / "v" / ".vs").read_text())
+    assert vs["vault"] == "my-project" and vs["mode"] == "documented"
+    assert _vs(["init", "vault"], tmp_path / "v", env).returncode == 1
+    assert _vs(["init", "template=Nome Ruim!"], tmp_path / "v", env).returncode == 1
+    r = _vs(["sync", "template=motion", "--dry-run", "--json"], tmp_path / "v", env)
+    assert r.returncode == 0, r.stderr
+    plano = json.loads(r.stdout)
+    assert plano["vault"] == "template-motion" and plano["mode"] == "literal"  # o .vs da pasta não muda
+    assert json.loads((tmp_path / "v" / ".vs").read_text())["vault"] == "my-project"
+
+
+def test_outra_pasta_soma_ao_template_sem_apagar(tela, tmp_path, monkeypatch):
+    from vault_system import curadoria, estado, ingestao, literal
+    cliente, _, cred = tela
+    monkeypatch.setenv("VAULT_DIR", str(tmp_path / "vault"))
+    tag = "template-design"
+    h = {"Authorization": "Bearer " + cred.criar("autor", [tag], [tag])}
+    base = zip_de({"default/tokens.css": ":root{}\n", "motion-vs/README.md": "# Motion\n"})
+    assert cliente.put(f"/v1/sistemas/{tag}/envio?mode=documented", content=base, headers=h).status_code == 200
+    # outra pasta, enviada como o template "instagram", soma ao vault; a pasta ligada continua igual
+    posts = zip_de({"instagram/README.md": "# Posts\n", "instagram/regras.md": "x\n"})
+    r = cliente.put(f"/v1/sistemas/{tag}/envio?mode=literal&origin=instagram", content=posts, headers=h)
+    assert r.status_code == 200 and r.json()["origem"] == "instagram", r.text
+    (tmp_path / "vault" / "sistemas" / tag / "_meta").mkdir(parents=True)
+    with estado.conectar() as db:
+        ingestao.ingerir(db, {"tag": tag})
+        literal.copiar(db, tag)
+        curadoria.avancar(db, tag)
+        assert db.execute("SELECT modo FROM sistemas WHERE tag = ?", (tag,)).fetchone()[0] == "documentado"
+    ids = [t["id"] for t in cliente.get("/v1/templates", headers=h).json()["templates"]]
+    assert ids == ["design:default", "design:instagram", "design:motion-vs"]
+    # reenviar a pasta ligada não apaga o template que veio da outra pasta
+    assert cliente.put(f"/v1/sistemas/{tag}/envio", content=base, headers=h).status_code == 200
+    with estado.conectar() as db:
+        ingestao.ingerir(db, {"tag": tag})
+        literal.copiar(db, tag)
+        curadoria.avancar(db, tag)
+    assert "design:instagram" in [t["id"] for t in cliente.get("/v1/templates", headers=h).json()["templates"]]
+
+
+def test_vs_sync_template_de_outra_pasta_vira_um_template(tmp_path):
+    env = {**os.environ, "VS_CLI": "1", "XDG_CONFIG_HOME": str(tmp_path / "cfg"), "VS_URL": "", "PYTHONUTF8": "1"}
+    env.pop("VS_TOKEN", None)
+    pasta = tmp_path / "Posts Instagram"
+    (pasta / "docs").mkdir(parents=True)
+    (pasta / "docs" / "como.md").write_text("# Como\n")
+    assert _vs(["init"], pasta, env).returncode == 0
+    r = _vs(["sync"], pasta, env)
+    assert r.returncode == 1 and "não está ligada" in r.stderr
+    plano = json.loads(_vs(["sync", "template=design", "--dry-run", "--json"], pasta, env).stdout)
+    assert plano["vault"] == "template-design" and plano["origin"] == "posts-instagram"
+    assert "posts-instagram/docs/como.md" in plano["arquivos"]
+    plano = json.loads(_vs(["sync", "template=design", "name=instagram", "--dry-run", "--json"], pasta, env).stdout)
+    assert plano["origin"] == "instagram" and "instagram/docs/como.md" in plano["arquivos"]
+
+
+
+def test_comandos_antigos_avisam_o_nome_novo(tmp_path):
+    env = {**os.environ, "VS_CLI": "1", "XDG_CONFIG_HOME": str(tmp_path / "cfg"), "VS_URL": "", "PYTHONUTF8": "1"}
+    env.pop("VS_TOKEN", None)
+    casos = {("templates",): "list templates", ("repo", "connect", "git@x:y.git"): "connect repo",
+             ("init", "vault", "a"): "init vault=a", ("init", "pacote"): "init package=pacote",
+             ("sync", "vault", "a"): "sync vault=a", ("sync", "a", "b.zip"): "sync vault=a file=b.zip"}
+    for args, novo in casos.items():
+        r = _vs(list(args), tmp_path, env)
+        assert r.returncode == 1 and novo in r.stderr, (args, r.stderr)
+    ajuda = _vs(["help"], tmp_path, env).stdout
+    for cmd in ("vs list templates", "vs connect repo", "vs init template=<type>", "vs sync vault=<name>", "file=<zip>"):
+        assert cmd in ajuda
