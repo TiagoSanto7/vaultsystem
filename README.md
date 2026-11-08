@@ -4,7 +4,7 @@
 
 <h1 align="center">Vault System</h1>
 <p align="center"><strong>Conhecimento distribuído para pessoas, agentes e ferramentas.</strong></p>
-<p align="center"><a href="#como-funciona">Como funciona</a> · <a href="#do-projeto-ao-hub">Do projeto ao hub</a> · <a href="#acessos">Acessos</a> · <a href="#estado-do-projeto">Estado do projeto</a></p>
+<p align="center"><a href="#como-funciona">Como funciona</a> · <a href="#from-project-to-hub">From project to hub</a> · <a href="#commands">Commands</a> · <a href="#access">Access</a> · <a href="#estado-do-projeto">Estado do projeto</a></p>
 
 Vault System reúne conhecimento que vive espalhado entre código, documentação e decisões de projeto. Ele relaciona essas informações com suas fontes e ajuda a levar o contexto certo para pessoas, agentes e ferramentas.
 
@@ -16,48 +16,67 @@ Vault System reúne conhecimento que vive espalhado entre código, documentaçã
 | **02 · Conectar** | As relações entre as fontes dão contexto a cada informação. |
 | **03 · Distribuir** | Pessoas, agentes e ferramentas reaproveitam esse contexto onde trabalham. |
 
-## Do projeto ao hub
+## From project to hub
 
-O **hub** é o servidor do seu workspace: guarda os vaults, mostra as notas e emite os acessos. A **VS CLI** liga cada pasta de projeto a um vault no hub. Git é opcional: o que sobe é a própria pasta.
+The **hub** is your workspace server: it stores the vaults, shows the notes and issues access tokens. The **VS CLI** links each project folder to a vault on the hub. Git is optional: what gets uploaded is the folder itself.
 
 ```text
- Projeto (sua máquina)                         Hub (workspace)
- ─────────────────────                         ───────────────
- vs login   ── token de conexão ─────────────▶ confere o token e o dono
- vs init    ── grava .vs e AGENTS.md
- agente     ── escreve as notas (vs: regra, elemento, …)
- vs sync    ── pacote da pasta ──────────────▶ cria ou atualiza o vault
-                                               arquivos como estão + notas curadas
-                                               verificação de origem e de segredo
+ Project (your machine)                        Hub (workspace)
+ ──────────────────────                        ───────────────
+ vs login   ── connection token ─────────────▶ checks the token and its owner
+ vs init    ── writes .vs and AGENTS.md
+ agent      ── writes the notes (vs: regra, elemento, …)
+ vs sync    ── folder package ───────────────▶ creates or updates the vault
+                                               files as they are + curated notes
+                                               source and secret checks
                                                         │
                        ┌────────────────────────────────┼─────────────────────────────┐
                        ▼                                ▼                             ▼
-                 Painel (pessoas)              MCP e API (agentes, apps)     vs add template (outros projetos)
+                 Panel (people)                MCP and API (agents, apps)    vs add template (other projects)
 ```
 
-1. **Instalar a CLI.** No painel, aba VS CLI, um comando instala `vs` e `vaultsystem` no seu usuário, já apontando para o hub:
+1. **Install the CLI.** In the panel, VS CLI tab, one command installs `vs` and `vaultsystem` for your user, already pointing to the hub:
    - Windows: `irm <hub>/v1/cli/install.ps1 | iex`
-   - Linux, macOS e WSL: `curl -fsSL <hub>/v1/cli/install.sh | sh`
-2. **Conectar.** Na aba Tokens, crie um **token de conexão** e rode `vs login`. O token fica guardado só no seu usuário (`~/.config/vaultsystem/config.json`). `vs whoami` mostra o hub e o dono do workspace.
-3. **Ligar a pasta.** `vs init vault=meu-projeto` grava o vínculo em `.vs` e acrescenta ao `AGENTS.md` o protocolo de documentação. O modo padrão é **literal + documentado**; `modo=literal` só guarda os arquivos.
-4. **Documentar.** O agente do projeto (Claude Code, Codex ou outro) lê o `AGENTS.md` e escreve uma nota por assunto, com o tipo e os arquivos de origem no cabeçalho.
-5. **Enviar.** `vs sync` empacota a pasta, respeitando o `.gitignore` (`.env`, `node_modules` e afins nunca vão), e envia. O primeiro envio cria o vault. Os arquivos entram como estão e as notas do agente entram **já curadas**, ligadas à origem. Arquivo com cara de segredo bloqueia o envio.
-6. **Distribuir.** O conhecimento do vault fica disponível para:
-   - **pessoas**, no painel;
-   - **agentes e aplicações**, pelo MCP e pela API, com um token de leitura;
-   - **outros projetos**, como template: `vs add template design:default` aplica uma pasta de um vault `template-*`.
+   - Linux, macOS and WSL: `curl -fsSL <hub>/v1/cli/install.sh | sh`
+2. **Connect.** In the Tokens tab, create a **connection token** and run `vs login`. The token is saved only for your user (`~/.config/vaultsystem/config.json`). `vs whoami` shows the hub and the workspace owner.
+3. **Link the folder.** `vs init vault=my-project` writes the link in `.vs` and adds the documentation protocol to `AGENTS.md`. The default mode is **literal + documented** (`mode=documented`); `mode=literal` only stores the files.
+4. **Document.** The project's agent (Claude Code, Codex or another) reads `AGENTS.md` and writes one note per subject, with its type and source files in the header.
+5. **Send.** `vs sync` packages the folder, respecting `.gitignore` (`.env`, `node_modules` and the like never go), and sends it. The first sync creates the vault. Files are stored as they are, and the agent's notes arrive **already curated**, linked to their sources. A file that looks like a secret blocks the sync. `vs sync --dry-run` lists what would be sent.
+6. **Distribute.** The vault's knowledge becomes available to:
+   - **people**, in the panel;
+   - **agents and applications**, through MCP and the API, with a read token;
+   - **other projects**, as a template: `vs add template design:default` applies a folder from a `template-*` vault.
 
-**Curadoria no hub (opcional).** O Vault-I escreve notas a partir dos arquivos com uma chave de API (Claude ou OpenAI), configurada em Configurações. Ele nunca roda sozinho: só pelo botão **Curar com Vault-I** de um vault ou com `vs sync --curate`. Sem chave, nada muda.
+**Curation on the hub (optional).** Vault-I writes notes from the files using an API key (Claude or OpenAI), set in Settings. It never runs on its own: only from a vault's **Curar com Vault-I** button or with `vs sync --curate`. Without a key, nothing changes.
 
-## Acessos
+### Commands
 
-| Quem | Como entra | O que pode |
+| Command | What it does |
+| --- | --- |
+| `vs login [url=<address>]` | Connects to the hub with your connection token. |
+| `vs logout` | Removes the saved token. |
+| `vs whoami` | Shows the hub, the token and the workspace owner. |
+| `vs init [name] [vault=<name>] [mode=literal\|documented]` | Links this folder to a vault: writes `.vs`, `AGENTS.md` and `VS.lock`. |
+| `vs sync [--dry-run] [--curate]` | Packages this folder and sends it to the vault in `.vs`. |
+| `vs sync <vault> <file.zip> [mode=literal\|documented]` | Sends a ready-made ZIP to a vault. |
+| `vs templates [type]` | Lists the templates on the hub. |
+| `vs add template <type:name> [dir=<folder>] [--dry-run] [--force]` | Applies a template to the current folder. |
+| `vs repo connect <ssh-url>` | Initializes Git and adds the `vault` remote. |
+| `vs version` / `vs update` | Shows the version / downloads the latest CLI from the hub. |
+| `vs help` | Lists all commands. |
+| `vaultsystem` | Opens the welcome panel. |
+
+Every command accepts `--json` (output for scripts and agents).
+
+## Access
+
+| Who | How they sign in | What they can do |
 | --- | --- | --- |
-| **Pessoa no painel** | Usuário e senha de uma conta do hub. A primeira conta nasce na instalação; as outras, no servidor. Sessão de 12 horas. | Ver os vaults e as notas, criar e revogar tokens, configurar o Vault-I e pedir curadoria. |
-| **Terminal e agente do projeto** | **Token de conexão**, criado no painel e usado no `vs login`. | Enviar e ler todos os vaults do workspace e criar vaults no primeiro `vs sync`. |
-| **Agentes e aplicações** | **Token de leitura**, criado no painel com os vaults marcados. | Consultar só aqueles vaults, pelo MCP (`search_knowledge`, `read_note`, …) ou pela API. |
+| **Person in the panel** | Username and password of a hub account. The first account is created at install time; others on the server. 12-hour session. | See vaults and notes, create and revoke tokens, configure Vault-I and request curation. |
+| **Project terminal and agent** | **Connection token**, created in the panel and used by `vs login`. | Send to and read all vaults in the workspace, and create vaults on the first `vs sync`. |
+| **Agents and applications** | **Read token**, created in the panel with the selected vaults. | Query only those vaults, through MCP (`search_knowledge`, `read_note`, …) or the API. |
 
-Todo token começa com `vs_`, aparece **uma vez só** na criação e fica guardado no hub apenas como hash. Revogar um token no painel corta o acesso na chamada seguinte.
+Every token starts with `vs_`, is shown **only once** when created and is stored on the hub only as a hash. Revoking a token in the panel cuts access on the next call.
 
 ## Estado do projeto
 

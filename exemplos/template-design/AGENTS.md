@@ -5,7 +5,7 @@
 
 Este projeto está ligado a um vault no hub do Vault System (veja `.vs`). Quem
 envia é `vs sync`: ele empacota a pasta (respeitando o `.gitignore`) e manda
-para o hub. No modo **documentado**, as notas descritas aqui entram no vault
+para o hub. No modo **documented** (literal + documentado), as notas descritas aqui entram no vault
 **já curadas**, sem curador no hub. Mantenha as notas em dia sempre que mudar
 o que elas explicam.
 
