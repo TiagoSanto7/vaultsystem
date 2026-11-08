@@ -9,7 +9,7 @@ local em `local/dados/conteudo.git`.
 Na raiz do projeto, com o Docker Desktop ligado:
 
 ```sh
-py -3 local/preparar.py --login tiago
+py -3 local/preparar.py --login <username>
 docker compose --env-file local/.env -f docker-compose.yml -f local/docker-compose.local.yml up -d --build
 ```
 
