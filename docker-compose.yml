@@ -63,9 +63,13 @@ services:
       - "${API_BIND:-127.0.0.1}:${API_PORTA:-8670}:8000"
 
   curador:
-    # Imagem do Hermes, fixada: o curador com LLM roda nela, com o
-    # perfil e o plugin de curador/perfil/.
-    image: ${HERMES_IMAGE:-nousresearch/hermes-agent:v2026.9.11}
+    # Imagem do Hermes, fixada, mais a CLI oficial do Claude Code (curador/Dockerfile),
+    # que o Vault-I usa com o token do `claude setup-token`.
+    build:
+      context: ./curador
+      args:
+        HERMES_IMAGE: ${HERMES_IMAGE:-nousresearch/hermes-agent:v2026.9.11}
+    image: vault-system/curador:dev
     restart: unless-stopped
     user: "10000:10000"
     entrypoint: ["/bin/sh", "/opt/vault-system/curador/ciclo.sh"]
