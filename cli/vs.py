@@ -16,10 +16,12 @@ Commands:
     vs init template=<type>            link this folder to the template vault template-<type>;
                                        each subfolder is one template (<type>:<folder>)
         mode=literal|documented        default: documented for a vault, literal for a template
-    vs init [package]                  only apply an init package (default: the local one)
+    vs init                            prepare this folder (AGENTS.md, .vs) without linking it to a vault
+    vs init [package]                  same, with an init package from the hub
     vs sync                            package this folder and send it to the vault in .vs (creates it on first sync)
-    vs sync vault=<name>               send this folder to that vault instead
-    vs sync template=<type>            send this folder to template-<type> instead
+    vs sync vault=<name>               add this folder to that vault (other folders' content stays)
+    vs sync template=<type>            add this folder to template-<type> as one template
+        name=<template>                the template name (default: this folder's name)
         --dry-run                      only list what would be sent
         --curate                       ask Vault-I to curate (needs an API key on the hub)
     vs sync <vault> <file.zip>         send a ready-made ZIP to a vault
@@ -430,7 +432,7 @@ def _arquivos_do_projeto(raiz):
     return saida
 
 
-def _empacotar(raiz, nomes):
+def _empacotar(raiz, nomes, prefixo=None):
     buf, total = io.BytesIO(), 0
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for n in nomes:
@@ -439,7 +441,7 @@ def _empacotar(raiz, nomes):
             if total > LIMITE_PACOTE:
                 raise Erro("o projeto passa de 10 MB: tire do envio o que não é conhecimento (build, mídia, "
                            "dados) pelo .gitignore")
-            info = zipfile.ZipInfo(n, date_time=(1980, 1, 1, 0, 0, 0))
+            info = zipfile.ZipInfo((prefixo or "") + n, date_time=(1980, 1, 1, 0, 0, 0))
             info.compress_type = zipfile.ZIP_DEFLATED
             executavel = os.name != "nt" and os.access(caminho, os.X_OK)
             info.external_attr = (0o100755 if executavel else 0o100644) << 16
@@ -459,8 +461,9 @@ def _e_nota(caminho):
     return bool(m and re.search(r"(?m)^vs:\s*[a-z]+\s*(#.*)?$", m.group(1)))
 
 
-def _enviar(tag, pacote, modo, curar=False):
-    query = "&".join(q for q in (f"mode={modo}" if modo else "", "curate=true" if curar else "") if q)
+def _enviar(tag, pacote, modo, curar=False, origem=None):
+    query = "&".join(q for q in (f"mode={modo}" if modo else "", "curate=true" if curar else "",
+                                  f"origin={origem}" if origem else "") if q)
     return pedir(f"/v1/sistemas/{tag}/envio", token(), pacote=pacote, query=f"?{query}" if query else None)
 
 
@@ -480,6 +483,8 @@ def cmd_sync(pos, params, flags):
         tipo = "vault" if params.get("vault") else "template"
         alvo = (tipo, _alvo_nomeado(tipo, params[tipo]))
         return _sync_projeto({k: v for k, v in params.items() if k not in TIPOS_ALVO}, flags, alvo=alvo)
+    if params.get("name"):
+        raise Erro(f"name= só vale com template=: {cli()} sync template=<type> name=<template>")
     if not pos:
         return _sync_projeto(params, flags)
     if pos[0] in TIPOS_ALVO:
@@ -502,23 +507,33 @@ def cmd_sync(pos, params, flags):
 
 
 def _sync_projeto(params, flags, alvo=None):
-    if set(params) - {"dir", "mode"} or flags - {"json", "dry-run", "curate"} or (params.get("mode") and not alvo):
+    if set(params) - {"dir", "mode", "name"} or flags - {"json", "dry-run", "curate"} or (params.get("mode") and not alvo):
         raise Erro(f"uso: {cli()} sync [vault=<name> | template=<type>] [dir=<folder>] [--dry-run] [--curate] [--json]")
     if params.get("mode") and params["mode"] not in MODOS:
         raise Erro("modo inválido: use mode=literal ou mode=documented")
     raiz = os.path.abspath(params.get("dir") or ".")
     vs = _ler_vs(raiz)
+    origem = prefixo = None
     if alvo:
         # Destino escolhido na hora: o modo vem do parâmetro, do .vs (se for o mesmo vault) ou do padrão do tipo.
         tipo, tag = alvo
-        do_vs = _modo_do_vs(vs) if vs and vs.get("vault") == tag else None
+        propria = bool(vs and vs.get("vault") == tag)  # a pasta ligada a esse vault pelo vs init
+        do_vs = _modo_do_vs(vs) if propria else None
         vs = {**(vs or {}), "vault": tag,
               "mode": params.get("mode") or do_vs or ("literal" if tipo == "template" else "documented")}
+        if not propria:
+            # Outra pasta: vira uma origem própria do vault e soma, sem apagar o que as outras enviaram.
+            origem = _nome_vault(params.get("name") or os.path.basename(raiz))
+            if origem == "envio-local":
+                origem = "pasta-" + origem
+            if tipo == "template":
+                prefixo = origem + "/"  # num vault de template, a pasta inteira é um template: <tipo>:<pasta>
     if vs is None:
         raise Erro(f"esta pasta não tem .vs: rode {cli()} init vault=<name> (ou {cli()} sync vault=<name>)")
     tag, modo = vs.get("vault"), _modo_do_vs(vs)
     if not isinstance(tag, str) or not TAG.fullmatch(tag) or modo not in MODOS:
-        raise Erro(f"o .vs não diz o vault e o modo: rode {cli()} init vault=<name> (ou template=<type>)")
+        raise Erro(f"esta pasta não está ligada a um vault: envie com {cli()} sync vault=<name> ou "
+                   f"{cli()} sync template=<type> (ou ligue com {cli()} init vault=<name>)")
     hub = url_base()
     if vs.get("hub") and hub and vs["hub"].rstrip("/") != hub:
         raise Erro(f"esta pasta está ligada ao hub {vs['hub']}, e o login atual é de {hub}: "
@@ -528,14 +543,15 @@ def _sync_projeto(params, flags, alvo=None):
         raise Erro("nada para enviar nesta pasta")
     notas = [n for n in nomes if n.lower().endswith(".md") and _e_nota(os.path.join(raiz, *n.split("/")))]
     if "dry-run" in flags:
-        r = {"vault": tag, "mode": modo, "hub": hub, "arquivos": nomes, "notas_do_agente": notas, "dry_run": True}
+        r = {"vault": tag, "mode": modo, "hub": hub, "arquivos": [(prefixo or "") + n for n in nomes],
+             "notas_do_agente": notas, "origin": origem, "dry_run": True}
         saida(r, "json" in flags,
               f"Simulação: {len(nomes)} arquivo(s) para {tag} ({modo}) em {hub or '(sem hub)'}\n"
               + "\n".join(f"  {'*' if n in notas else ' '} {n}" for n in nomes)
               + (f"\n* nota do agente ({len(notas)}): entra curada no modo documented" if notas else "")
               + "\nNada foi enviado (--dry-run).")
         return 0
-    r = _enviar(tag, _empacotar(raiz, nomes), MODO_NO_HUB[modo], "curate" in flags)
+    r = _enviar(tag, _empacotar(raiz, nomes, prefixo), MODO_NO_HUB[modo], "curate" in flags, origem)
     r.update({"vault": tag, "mode": modo, "notas_do_agente": len(notas)})
     saida(r, "json" in flags,
           f"Enviado para {tag} ({modo}): {r['arquivos']} arquivo(s) · revisão {r['commit'][:12]}"
@@ -572,9 +588,9 @@ def _aplicar_template(ident, params, flags, iniciar=False):
                         or url.password is not None or url.query or url.fragment):
                     raise Erro("configure uma URL HTTP(S) do hub sem credenciais ou parâmetros")
             anterior = _ler_vs(destino) or {}
-            vault = params.get("vault") or anterior.get("vault") or _nome_vault(os.path.basename(destino))
+            vault = params.get("vault") or anterior.get("vault") or None
             modo_vault = params.get("mode") or _modo_do_vs(anterior) or (
-                "literal" if vault.startswith("template-") else "documented")
+                "literal" if (vault or "").startswith("template-") else "documented")
             conexao = None
             if hub and not simular:
                 try:
@@ -681,7 +697,9 @@ def _aplicar_template(ident, params, flags, iniciar=False):
     marca = {"novo": "+", "sobrescreve": "~", "igual": "=", "mantido": "=", "acrescenta": "+", "atualiza": "~"}
     if iniciar:
         resultado.update({"vault": manifesto["vault"], "mode": manifesto["mode"], "hub": manifesto["hub"]})
-    vinculo = (f"\nProjeto ligado ao vault {manifesto['vault']} ({manifesto['mode']})"
+    vinculo = ((f"\nPasta pronta, ainda sem vault. Envie com {cli()} sync vault=<name> ou {cli()} sync template=<type>."
+                if not manifesto["vault"] else "") if iniciar else "")
+    vinculo = vinculo or (f"\nProjeto ligado ao vault {manifesto['vault']} ({manifesto['mode']})"
                + (f" no hub {manifesto['hub']}" if manifesto["hub"] else " (sem hub: rode vs login)")
                + (f", workspace de {manifesto['connection']['owner']}" if (manifesto.get("connection") or {}).get("owner") else "")
                + f".\nPróximo passo: documente seguindo o AGENTS.md e rode {cli()} sync.") if iniciar else ""

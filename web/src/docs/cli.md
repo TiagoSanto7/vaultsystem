@@ -144,7 +144,8 @@ vs whoami                          hub, token e dono do workspace
 vs init vault=<nome> [mode=<m>]    liga a pasta a um vault
 vs init template=<tipo>           liga a pasta ao vault template-<tipo>
 vs sync [--dry-run]                envia a pasta ao vault do .vs
-vs sync vault=|template=<nome>      envia a pasta a outro vault
+vs sync vault=<nome>               soma esta pasta a um vault (o resto fica)
+vs sync template=<tipo> [name=<n>] soma esta pasta como um template
 vs sync <vault> <zip> [mode=…]     envia um ZIP pronto
 vs templates [tipo]                lista os templates
 vs add template <tipo:nome>        aplica um template na pasta

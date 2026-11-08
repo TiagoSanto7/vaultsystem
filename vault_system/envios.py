@@ -70,10 +70,17 @@ def _git(repo, *args, dados=None, conferir=True):
     return r.stdout.strip().decode("ascii") if not r.returncode else None
 
 
-def gravar(tag, pacote, por, modo=None):
-    """Cria o vault quando modo é informado, ou atualiza sua origem de envio."""
+def gravar(tag, pacote, por, modo=None, origem=None):
+    """Cria o vault quando modo é informado, ou atualiza sua origem de envio.
+
+    origem: o nome da pasta que envia. Cada pasta é uma origem do vault e só troca o que é dela; outra pasta
+    soma ao vault sem apagar nada (ex.: uma pasta de posts enviada ao template-design). Sem origem, é a
+    origem padrão do vault (a pasta ligada a ele pelo vs init)."""
     if not estado.TAG.fullmatch(tag):
         raise ValueError("Nome de vault inválido.")
+    if origem is not None and (not estado.TAG.fullmatch(origem) or origem == ORIGEM):
+        raise ValueError("Nome de origem inválido.")
+    nome_origem = origem or ORIGEM
     if len(pacote) > MAXIMO or modo not in (None, "literal", "documentado"):
         raise ValueError("Pacote maior que 10 MB ou modo inválido.")
     itens = _arquivos(pacote)
@@ -87,17 +94,20 @@ def gravar(tag, pacote, por, modo=None):
     with estado.conectar() as db:
         db.execute("BEGIN IMMEDIATE")
         existente = db.execute("SELECT removido_em, modo FROM sistemas WHERE tag = ?", (tag,)).fetchone()
-        origem = db.execute("SELECT repo FROM origens WHERE tag = ? AND nome = ? AND repo LIKE ? AND removida_em IS NULL",
-                            (tag, ORIGEM, REPO + ":%")).fetchone()
-        if existente and not existente["removido_em"] and origem:
-            if modo is not None and existente["modo"] and existente["modo"] != modo:
+        origem_db = db.execute("SELECT repo FROM origens WHERE tag = ? AND nome = ? AND repo LIKE ? AND removida_em IS NULL",
+                               (tag, nome_origem, REPO + ":%")).fetchone()
+        nova_origem = False
+        if existente and not existente["removido_em"] and origem_db:
+            if origem is None and modo is not None and existente["modo"] and existente["modo"] != modo:
                 raise FileExistsError(f"O vault {tag} já existe no modo {existente['modo']}.")
             modo = None  # o vault já existe: o envio só atualiza a origem
+        elif existente and not existente["removido_em"] and origem is not None:
+            nova_origem, modo = True, None  # outra pasta soma ao vault que já existe, no modo dele
         elif existente:
             raise FileExistsError("Já existe um vault com esse nome.")
         elif modo is None:
             raise LookupError(f"O vault {tag} não existe. Informe modo=literal ou modo=documentado para criá-lo.")
-        identificador = REPO + ":" + uuid.uuid4().hex if modo is not None else origem["repo"]
+        identificador = REPO + ":" + uuid.uuid4().hex if modo is not None or nova_origem else origem_db["repo"]
         repo = repositorio(identificador)
         os.makedirs(os.path.dirname(repo), exist_ok=True)
         if not os.path.isfile(os.path.join(repo, "HEAD")):
@@ -121,7 +131,10 @@ def gravar(tag, pacote, por, modo=None):
             db.execute("INSERT INTO sistemas (tag, perfil, repo, ramo, incluir, excluir, criado_em, criado_por, modo) "
                        "VALUES (?, ?, ?, 'main', '[]', '[]', ?, ?, ?)", (tag, perfil, identificador, agora, por, modo))
             db.execute("INSERT INTO origens (tag, nome, repo, ramo, leituras, criado_em) "
-                       "VALUES (?, ?, ?, 'main', ?, ?)", (tag, ORIGEM, identificador, leituras, agora))
+                       "VALUES (?, ?, ?, 'main', ?, ?)", (tag, nome_origem, identificador, leituras, agora))
+        elif nova_origem:
+            db.execute("INSERT INTO origens (tag, nome, repo, ramo, leituras, criado_em) "
+                       "VALUES (?, ?, ?, 'main', ?, ?)", (tag, nome_origem, identificador, leituras, estado.agora()))
         db.execute("INSERT INTO pulls (tag, pedido_em, pedido_por) VALUES (?, ?, ?)",
                    (tag, estado.agora(), por))
-    return {"tag": tag, "commit": commit, "arquivos": len(itens)}
+    return {"tag": tag, "commit": commit, "arquivos": len(itens), "origem": nome_origem}
