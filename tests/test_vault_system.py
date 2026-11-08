@@ -364,3 +364,23 @@ def test_template_leva_arquivos_de_audio(tela, tmp_path, monkeypatch):
     assert z.status_code == 200, z.text
     with zipfile.ZipFile(io.BytesIO(z.content)) as arq:
         assert arq.read("public/sfx/key.mp3") == som
+
+
+def test_vs_init_e_sync_por_vault_ou_template(tmp_path):
+    env = {**os.environ, "VS_CLI": "1", "XDG_CONFIG_HOME": str(tmp_path / "cfg"), "VS_URL": "", "PYTHONUTF8": "1"}
+    env.pop("VS_TOKEN", None)
+    (tmp_path / "t").mkdir()
+    assert _vs(["init", "template", "design"], tmp_path / "t", env).returncode == 0
+    vs = json.loads((tmp_path / "t" / ".vs").read_text())
+    assert vs["vault"] == "template-design" and vs["mode"] == "literal"
+    (tmp_path / "v").mkdir()
+    assert _vs(["init", "vault", "my-project"], tmp_path / "v", env).returncode == 0
+    vs = json.loads((tmp_path / "v" / ".vs").read_text())
+    assert vs["vault"] == "my-project" and vs["mode"] == "documented"
+    assert _vs(["init", "vault"], tmp_path / "v", env).returncode == 1
+    assert _vs(["init", "template", "Nome Ruim!"], tmp_path / "v", env).returncode == 1
+    r = _vs(["sync", "template", "template-motion", "--dry-run", "--json"], tmp_path / "v", env)
+    assert r.returncode == 0, r.stderr
+    plano = json.loads(r.stdout)
+    assert plano["vault"] == "template-motion" and plano["mode"] == "literal"  # o .vs da pasta não muda
+    assert json.loads((tmp_path / "v" / ".vs").read_text())["vault"] == "my-project"

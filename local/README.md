@@ -21,7 +21,7 @@ http://127.0.0.1:8790.
 
 1. Entre no hub e crie um **token de conexão** na aba Tokens.
 2. No terminal: `vs login url=http://127.0.0.1:8790` e cole o token.
-3. Na pasta do projeto: `vs init vault=<nome>` (modo padrão: literal +
+3. Na pasta do projeto: `vs init vault <nome>` (modo padrão: literal +
    documentado, `mode=documented`; `mode=literal` só copia os arquivos). Isso grava o `.vs`
    (vínculo com o hub e o dono do workspace) e o protocolo no `AGENTS.md`.
 4. O agente escreve as notas seguindo o `AGENTS.md` (cabeçalho `vs:`).
@@ -30,7 +30,7 @@ http://127.0.0.1:8790.
 
 Exemplo pronto: `exemplos/template-design` é o template `design:default` (o
 design system do Vault System, com 9 notas). Nessa pasta, rode
-`vs init vault=template-design` e `vs sync`; depois, em outra pasta,
+`vs init template design` e `vs sync`; depois, em outra pasta,
 `vs add template design:default`.
 
 ## Curadoria interna (Vault-I)

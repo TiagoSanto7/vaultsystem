@@ -48,7 +48,7 @@ export default function Cli() {
       <div className="panel-head"><h2>Fluxo principal</h2><Link className="textbtn" to="/tokens">Criar token de conexão</Link></div>
       <div className="panel-body"><ol>
         <li><code>vs login</code> conecta o terminal ao seu workspace com o token de conexão (aba Tokens).</li>
-        <li><code>vs init vault=&lt;nome&gt;</code> liga a pasta a um vault: grava o vínculo em <code>.vs</code> e o protocolo de documentação no <code>AGENTS.md</code>. Padrão: literal + documentado; <code>mode=literal</code> só copia os arquivos.</li>
+        <li><code>vs init vault &lt;nome&gt;</code> (ou <code>vs init template &lt;tipo&gt;</code>) liga a pasta a um vault: grava o vínculo em <code>.vs</code> e o protocolo de documentação no <code>AGENTS.md</code>. Padrão: literal + documentado; <code>mode=literal</code> só copia os arquivos.</li>
         <li>O agente do projeto escreve as notas seguindo o <code>AGENTS.md</code> (cabeçalho <code>vs:</code>, com as origens).</li>
         <li><code>vs sync</code> empacota a pasta (respeita o <code>.gitignore</code>) e envia. O primeiro envio cria o vault; as notas do agente entram já curadas. <code>--dry-run</code> mostra o que iria.</li>
       </ol></div>
