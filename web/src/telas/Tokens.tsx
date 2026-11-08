@@ -25,14 +25,17 @@ export function TabelaTokens({ tokens, recarregar, vazio }: { tokens: Credencial
             <tbody>
               {pagina.visiveis.map((c) => (
                 <tr key={c.nome}>
-                  <td><b style={{ fontWeight: 500 }}>{c.nome}</b>{c.escrever.length > 0 && <small>escreve em {c.escrever.join(", ")}</small>}</td>
+                  <td><b style={{ fontWeight: 500 }}>{c.nome}</b>
+                    {c.workspace ? <small>conexão da CLI (vs login)</small> : c.escrever.length > 0 && <small>escreve em {c.escrever.join(", ")}</small>}</td>
                   <td>
-                    <div className="tags">{c.ler.map((t) => <Link key={t} className="tag" to={`/sistemas/${encodeURIComponent(t)}`}>{t}</Link>)}</div>
+                    {c.workspace ? <span className="muted">todos os vaults do workspace</span> : (
+                      <div className="tags">{c.ler.map((t) => <Link key={t} className="tag" to={`/sistemas/${encodeURIComponent(t)}`}>{t}</Link>)}</div>
+                    )}
                   </td>
                   <td>{c.usado_em ? dataHora(c.usado_em) : <span className="muted">nunca usado</span>}</td>
                   <td>{dataHora(c.criado_em)}<small>{c.criado_por ? `por ${c.criado_por}` : "pelo terminal"}</small></td>
                   <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                    <button className="btn" onClick={() => setEditar(c)}>Vaults</button>{" "}
+                    {!c.workspace && <><button className="btn" onClick={() => setEditar(c)}>Vaults</button>{" "}</>}
                     <button className="btn danger" onClick={() => setRevogar(c.nome)}>Revogar</button>
                   </td>
                 </tr>
@@ -87,7 +90,7 @@ export default function Tokens() {
         <div>
           <div className="eyebrow">Integrações</div>
           <h1>Tokens</h1>
-          <p>Aplicações e agentes consultam o conhecimento dos vaults com um token. Cada token lê só os vaults marcados nele.</p>
+          <p>O token de conexão liga o terminal ao hub (<code>vs login</code>). Aplicações e agentes consultam com um token de leitura, que lê só os vaults marcados nele.</p>
         </div>
         <button className="btn primary" onClick={() => setCriar(true)}><Icone nome="key" />Criar token</button>
       </div>
@@ -99,7 +102,7 @@ export default function Tokens() {
         )}
       </section>
       <ComoUsar vault="<vault>" />
-      {criar && <CriarToken fechar={() => setCriar(false)} feito={recarregar} />}
+      {criar && <CriarToken conexaoInicial fechar={() => setCriar(false)} feito={recarregar} />}
     </div>
   );
 }

@@ -12,6 +12,14 @@ import secrets
 from petro_vault.estado import TAG, agora, conectar
 
 PREFIXO = "pv_"
+WORKSPACE = "workspace"
+
+
+class Todas(set):
+    """Escopo do token de conexão (Vault System): qualquer tag válida, inclusive a de um vault que
+    o primeiro `vs sync` vai criar. Ao listar, são os vaults ativos do workspace."""
+    def __contains__(self, tag):
+        return isinstance(tag, str) and bool(TAG.match(tag))
 
 
 def _hash(chave):
@@ -25,13 +33,15 @@ def validar_tags(tags):
     return sorted(set(tags))
 
 
-def criar(nome, ler, escrever, por=None):
-    """Cria a credencial e devolve a chave (a única vez em que ela aparece)."""
-    ler, escrever = validar_tags(ler), validar_tags(escrever)
+def criar(nome, ler, escrever, por=None, workspace=False):
+    """Cria a credencial e devolve a chave (a única vez em que ela aparece). Com workspace, é o
+    token de conexão da CLI: lê e escreve em todos os vaults e cria vaults no `vs sync`."""
+    ler, escrever = ([], []) if workspace else (validar_tags(ler), validar_tags(escrever))
     chave = PREFIXO + secrets.token_urlsafe(32)
     with conectar() as db:
-        db.execute("INSERT INTO credenciais (nome, hash, ler, escrever, criado_em, criado_por) VALUES (?, ?, ?, ?, ?, ?)",
-                   (nome, _hash(chave), json.dumps(ler), json.dumps(escrever), agora(), por))
+        db.execute("INSERT INTO credenciais (nome, hash, ler, escrever, criado_em, criado_por, escopo) "
+                   "VALUES (?, ?, ?, ?, ?, ?, ?)", (nome, _hash(chave), json.dumps(ler), json.dumps(escrever), agora(),
+                                                    por, WORKSPACE if workspace else "vaults"))
     return chave
 
 
@@ -40,13 +50,18 @@ def buscar(chave):
     if not chave or not chave.startswith(PREFIXO):
         return None
     with conectar() as db:
-        linha = db.execute("SELECT nome, ler, escrever FROM credenciais WHERE hash = ? AND revogada_em IS NULL",
-                           (_hash(chave),)).fetchone()
+        linha = db.execute("SELECT nome, ler, escrever, escopo, criado_por FROM credenciais "
+                           "WHERE hash = ? AND revogada_em IS NULL", (_hash(chave),)).fetchone()
         if linha:
             _marcar_uso(db, linha["nome"])
+            ativos = [l["tag"] for l in db.execute("SELECT tag FROM sistemas WHERE removido_em IS NULL ORDER BY tag")]
     if not linha:
         return None
-    return {"nome": linha["nome"], "ler": set(json.loads(linha["ler"])), "escrever": set(json.loads(linha["escrever"]))}
+    if linha["escopo"] == WORKSPACE:
+        return {"nome": linha["nome"], "ler": Todas(ativos), "escrever": Todas(ativos), "workspace": True,
+                "dono": linha["criado_por"]}
+    return {"nome": linha["nome"], "ler": set(json.loads(linha["ler"])), "escrever": set(json.loads(linha["escrever"])),
+            "workspace": False, "dono": linha["criado_por"]}
 
 
 def _marcar_uso(db, nome):
@@ -67,7 +82,7 @@ def alterar_leitura(nome, ler):
 
 def listar():
     with conectar() as db:
-        return [dict(l) for l in db.execute("SELECT id, nome, ler, escrever, criado_em, criado_por, revogada_em, usado_em FROM credenciais ORDER BY id")]
+        return [dict(l) for l in db.execute("SELECT id, nome, ler, escrever, criado_em, criado_por, revogada_em, usado_em, escopo FROM credenciais ORDER BY id")]
 
 
 def revogar(nome):

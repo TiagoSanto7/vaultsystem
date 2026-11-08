@@ -1,0 +1,5 @@
+[safe]
+	directory = *
+[user]
+	name = vault-system-local
+	email = vault@localhost

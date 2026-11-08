@@ -45,7 +45,7 @@ export default function Entrar() {
       const s = (x as ErroApi).status;
       setErro(
         s === 401 ? "Usuário ou senha incorretos." :
-        s === 403 ? "Sua conta entrou, mas ainda não tem acesso ao PetroVault. Peça acesso ao administrador." :
+        s === 403 ? "Sua conta ainda não tem acesso a este hub. Peça acesso ao administrador." :
         s === 429 ? "Muitas tentativas. Aguarde alguns minutos e tente de novo." :
         (x as Error).message,
       );
@@ -78,19 +78,11 @@ export default function Entrar() {
         </section>
         <section className="entry-card" aria-labelledby="titulo-entrar">
           <h2 id="titulo-entrar">Bem-vindo ao PetroVault.</h2>
-          <p>Entre com sua conta corporativa.</p>
+          <p>Entre com a sua conta do hub.</p>
 
-          {/* DV-574: fica pronto e desabilitado até a infra liberar o Azure AD. */}
-          <button className="btn entry-ms" disabled aria-describedby="ms-em-breve">
-            <span className="ms-mark" aria-hidden><i /><i /><i /><i /></span>
-            Entrar com a Microsoft
-          </button>
-          <small id="ms-em-breve" className="muted">Em breve. Por enquanto, use o usuário e a senha da rede.</small>
-
-          <div className="ou">ou com o usuário da rede</div>
           <form className="entry-ad" onSubmit={enviar} noValidate>
             <label htmlFor="login">Usuário</label>
-            <input id="login" name="username" autoComplete="username" placeholder="nome.sobrenome" value={login}
+            <input id="login" name="username" autoComplete="username" placeholder="seu.usuario" value={login}
               onChange={(e) => setLogin(e.target.value)} required autoFocus />
             <label htmlFor="senha">Senha</label>
             <input id="senha" name="password" type="password" autoComplete="current-password" value={senha}
@@ -104,8 +96,8 @@ export default function Entrar() {
 
           <details className="ajuda">
             <summary>Precisa de ajuda?</summary>
-            <p>Use o mesmo usuário e senha do computador da Petrovina (sem o domínio). A senha vai direto para o AD e não fica guardada no PetroVault.</p>
-            <p>Sem acesso? Peça ao administrador do PetroVault para incluir o seu usuário.</p>
+            <p>A conta é criada no servidor do hub (<code>python -m app.cli usuario &lt;login&gt;</code>) ou na primeira subida, com <code>VAULT_ADMIN_LOGIN</code> e <code>VAULT_ADMIN_SENHA</code>. A senha fica guardada só como hash.</p>
+            <p>Sem acesso? Peça ao administrador do hub para criar a sua conta.</p>
           </details>
         </section>
       </div>

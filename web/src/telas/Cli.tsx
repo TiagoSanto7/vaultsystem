@@ -33,12 +33,21 @@ export default function Cli() {
     <div className="heading"><div><div className="eyebrow">Do terminal ao projeto</div>
       <h1>VS CLI</h1><p>Comandos, pacotes iniciais e templates disponíveis no hub.</p></div></div>
     <section className="panel">
-      <div className="panel-head"><h2>Comandos e inicialização</h2></div>
+      <div className="panel-head"><h2>Fluxo principal</h2><Link className="textbtn" to="/tokens">Criar token de conexão</Link></div>
+      <div className="panel-body"><ol>
+        <li><code>vs login url=&lt;hub&gt;</code> conecta o terminal ao seu workspace com o token de conexão (aba Tokens).</li>
+        <li><code>vs init vault=&lt;nome&gt;</code> liga a pasta a um vault: grava o vínculo em <code>.vs</code> e o protocolo de documentação no <code>AGENTS.md</code>. Padrão: literal + documentado; <code>modo=literal</code> só copia os arquivos.</li>
+        <li>O agente do projeto escreve as notas seguindo o <code>AGENTS.md</code> (cabeçalho <code>vs:</code>, com as origens).</li>
+        <li><code>vs sync</code> empacota a pasta (respeita o <code>.gitignore</code>) e envia. O primeiro envio cria o vault; as notas do agente entram já curadas. <code>--dry-run</code> mostra o que iria.</li>
+      </ol></div>
+    </section>
+    <section className="panel">
+      <div className="panel-head"><h2>Outros comandos</h2></div>
       <div className="panel-body"><ul>
         <li><code>vaultsystem</code> abre o painel no terminal.</li>
-        <li><code>vs init</code> aplica <code>init:padrao</code> e prepara <code>AGENTS.md</code>, <code>.vs</code>, <code>VS.lock</code> e <code>.gitignore</code>.</li>
+        <li><code>vs whoami</code> mostra o hub, o token e o dono do workspace.</li>
         <li><code>vs init &lt;nome&gt;</code> aplica um pacote de inicialização do hub.</li>
-        <li><code>vs sync &lt;vault&gt; &lt;arquivo.zip&gt;</code> envia uma revisão completa para um vault de envio.</li>
+        <li><code>vs sync &lt;vault&gt; &lt;arquivo.zip&gt;</code> envia um ZIP pronto para um vault.</li>
         <li><code>vs add template &lt;tipo:nome&gt;</code> aplica os arquivos na pasta atual. Use <code>--dry-run</code> para simular.</li>
       </ul></div>
     </section>

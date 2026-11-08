@@ -38,6 +38,10 @@ if sessao.segredo_da_sessao():
                        max_age=12 * 3600, same_site="lax",
                        https_only=os.environ.get("VAULT_COOKIE_SEGURO", "0") == "1")
 app.state.ldap = sessao.ldap_do_ambiente()
+try:
+    sessao.garantir_admin_do_ambiente()  # VAULT_ADMIN_LOGIN e VAULT_ADMIN_SENHA na primeira subida
+except Exception as e:  # noqa: BLE001 - a API sobe mesmo sem o estado gravável (testes, leitura)
+    print(f"[api] conta inicial não criada: {e}")
 app.include_router(painel.router)
 
 
@@ -59,7 +63,16 @@ def exigir_tag(cred, tag, modo):
 @app.put("/v1/sistemas/{tag}/envio")
 async def sincronizar_envio(tag: str, request: Request, modo: str | None = None, cred=Depends(credencial)):
     exigir_tag(cred, tag, "escrever")
-    return await envio.receber(request, tag, cred["nome"], modo)
+    # Token de conexão: quem envia é o dono do workspace (vs sync); outro token, pelo nome dele.
+    por = cred["dono"] if cred.get("workspace") and cred.get("dono") else cred["nome"]
+    return await envio.receber(request, tag, por, modo)
+
+
+@app.get("/v1/eu")
+def quem_sou(cred=Depends(credencial)):
+    """A conexão da CLI (`vs login`, `vs init`): o token, o dono do workspace e o hub."""
+    return {"credencial": cred["nome"], "workspace": cred.get("workspace", False), "dono": cred.get("dono"),
+            "hub": baixar.url_publica(), "vaults": sorted(cred["escrever"] if cred.get("workspace") else cred["ler"] | cred["escrever"])}
 
 
 @app.get("/saude")

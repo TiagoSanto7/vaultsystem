@@ -50,7 +50,7 @@ import subprocess
 import sys
 import traceback
 
-from . import estado, historico, infra, ingestao, literal, notas
+from . import agente, estado, historico, infra, ingestao, literal, notas
 
 LOTE = int(os.environ.get("VAULT_LOTE", "5"))
 LOTE_CODIGO = int(os.environ.get("VAULT_LOTE_CODIGO", "12"))
@@ -78,6 +78,20 @@ PERFIS = {
 # Perfis sem LLM (DV-600): o código copia o arquivo como está (petro_vault/literal.py).
 LITERAIS = {literal.PERFIL: {literal.PASTA: literal.TIPO_NOTA}}
 PASTAS = {p: t for pastas in {**PERFIS, **LITERAIS}.values() for p, t in pastas.items()}
+# Vault System: notas preparadas pelo agente local (petro_vault/agente.py), nas pastas dos tipos delas.
+PASTAS.update({p: t for p, t in agente.PASTAS.items() if p not in PASTAS})
+
+
+def disponivel():
+    """Curadoria interna (LLM no hub) ligada? Padrão do Vault System: uma chave de API
+    (VAULT_CURADORIA_PROVEDOR = openai, anthropic ou gemini, com VAULT_CURADORIA_CHAVE; esses
+    provedores ainda não têm curador implementado). Hoje só o curador Hermes do PetroVault roda, com
+    VAULT_CURADORIA_PROVEDOR=hermes (ou sem provedor) e o token em CLAUDE_CODE_OAUTH_TOKEN.
+    Desligada não é erro: o vault fica com o que o código e o agente local fizeram."""
+    provedor = os.environ.get("VAULT_CURADORIA_PROVEDOR", "").strip().lower()
+    if provedor in ("", "hermes"):
+        return len(os.environ.get("CLAUDE_CODE_OAUTH_TOKEN", "")) >= 50
+    return False  # openai, anthropic, gemini: anotado, ainda sem curador
 
 CAMPOS_DO_CODIGO = ("sistema", "tipo_nota", "origens", "commit_origem", "criado_em", "atualizado_em",
                     "origem_tipo", "origem_responsavel", "origem_revisado_em")
@@ -708,7 +722,7 @@ def organizar_tag(db, tag):
     infra.adotar(db, tag)  # DV-602: arquivo de infra sem nota em infra/ entra na fila uma vez
     literal.copiar(db, tag)  # sem LLM: antes dos lotes, e não conta no teto de lotes
     falhas = 0
-    for n in range(LOTES_MAX):
+    for n in range(LOTES_MAX if disponivel() else 0):  # sem curadoria interna, os itens só aguardam (sem erro)
         lote = proximo_lote(db, tag)
         if not lote:
             break
@@ -747,6 +761,8 @@ def organizar_tag(db, tag):
     sem_curador = sorted({p["perfil"] for p in pendentes} - set(PERFIS) - set(LITERAIS))
     if sem_curador:
         print(f"[curadoria] {tag}: perfil {', '.join(sem_curador)} ainda sem curador; esses itens aguardam")
+    if pendentes and not disponivel():
+        print(f"[curadoria] {tag}: curadoria interna desligada (sem chave de API); {len(pendentes)} perfil(is) aguardam")
     if not pendentes:
         normalizar_links(tag)
     literal.colar_guias(db, tag)  # trechos dos guias de novo a partir das notas literais (sem LLM)
@@ -754,6 +770,7 @@ def organizar_tag(db, tag):
     literal.ligar_arquivos(tag, PERFIS["codigo"])  # DV-608: nota de código → cópias dos arquivos dela
     infra.carimbar(db, tag, completar={"sistema": tag, "tipo_nota": infra.TIPO_NOTA})  # fatos de infra (DV-602)
     avancar(db, tag)
+    agente.importar(db, tag)  # Vault System: notas do agente local, no snapshot processado (modo documentado)
 
 
 def testar_plugin(tag):

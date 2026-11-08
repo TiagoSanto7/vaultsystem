@@ -34,9 +34,13 @@ function EscolherVaults({ marcados, mudar }: { marcados: string[]; mudar: (v: st
   );
 }
 
-export function CriarToken({ inicial = [], fechar, feito }: { inicial?: string[]; fechar: () => void; feito: () => void }) {
+export function CriarToken({ inicial = [], fechar, feito, conexaoInicial = false }: {
+  inicial?: string[]; fechar: () => void; feito: () => void; conexaoInicial?: boolean;
+}) {
   const [nome, setNome] = useState("");
   const [vaults, setVaults] = useState<string[]>(inicial);
+  // Token de conexão (Vault System): o da CLI (vs login), com todos os vaults do workspace.
+  const [conexao, setConexao] = useState(conexaoInicial && inicial.length === 0);
   const [erro, setErro] = useState<string | null>(null);
   const [chave, setChave] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -46,7 +50,8 @@ export function CriarToken({ inicial = [], fechar, feito }: { inicial?: string[]
     setEnviando(true);
     setErro(null);
     try {
-      const r = await api<{ chave: string }>("/credenciais", { metodo: "POST", corpo: { nome: nome.trim(), ler: vaults, escrever: [] } });
+      const corpo = conexao ? { nome: nome.trim(), workspace: true } : { nome: nome.trim(), ler: vaults, escrever: [] };
+      const r = await api<{ chave: string }>("/credenciais", { metodo: "POST", corpo });
       setChave(r.chave);
       feito();
     } catch (x) {
@@ -57,18 +62,25 @@ export function CriarToken({ inicial = [], fechar, feito }: { inicial?: string[]
   }
 
   // Ao fechar, recarrega a lista: o token pode ter sido usado enquanto a janela estava aberta.
+  if (chave && conexao) return <ConexaoCriada chave={chave} fechar={() => { feito(); fechar(); }} />;
   if (chave) return <TokenCriado chave={chave} vaults={vaults} fechar={() => { feito(); fechar(); }} />;
   return (
     <Modal titulo="Criar token" aoFechar={fechar} largura={560}>
-      <p>Um token por aplicação ou agente: assim dá para revogar um sem afetar os outros. Só leitura: não escreve, não executa código e não acessa o GitHub.</p>
+      <div className="escolha-token" role="radiogroup" aria-label="Tipo de token">
+        <label className="check"><input type="radio" name="tipo-token" checked={conexao} onChange={() => setConexao(true)} />
+          <span><b>Conexão da CLI</b><small className="muted"> · para o <code>vs login</code>: lê e envia a todos os vaults deste workspace e cria um vault no primeiro <code>vs sync</code>.</small></span></label>
+        <label className="check"><input type="radio" name="tipo-token" checked={!conexao} onChange={() => setConexao(false)} />
+          <span><b>Leitura</b><small className="muted"> · para uma aplicação ou agente consultar só os vaults marcados.</small></span></label>
+      </div>
       <form onSubmit={enviar}>
         <label htmlFor="nome-token">Nome</label>
-        <input id="nome-token" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={64} required placeholder="ex.: portal-rh ou agente-suporte" />
-        <EscolherVaults marcados={vaults} mudar={setVaults} />
+        <input id="nome-token" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={64} required
+          placeholder={conexao ? "ex.: notebook-tiago" : "ex.: portal-rh ou agente-suporte"} />
+        {!conexao && <EscolherVaults marcados={vaults} mudar={setVaults} />}
         {erro && <div className="erro-campo" role="alert">{erro}</div>}
         <div className="modal-actions">
           <button type="button" className="btn" onClick={fechar}>Cancelar</button>
-          <button className="btn primary" type="submit" disabled={enviando || !nome.trim() || vaults.length === 0}>
+          <button className="btn primary" type="submit" disabled={enviando || !nome.trim() || (!conexao && vaults.length === 0)}>
             <Icone nome="key" />{enviando ? "Criando…" : "Criar token"}
           </button>
         </div>
@@ -119,6 +131,27 @@ function TokenCriado({ chave, vaults, fechar }: { chave: string; vaults: string[
       <Copiavel id="cmd-mcp" texto={c.mcp} rotulo="Comando MCP" linhas />
       <h3 className="token-passo">Aplicação (API HTTP)</h3>
       <Copiavel id="cmd-curl" texto={c.curl} rotulo="Exemplo de busca" linhas />
+      <div className="modal-actions"><button className="btn primary" onClick={fechar}>Já guardei</button></div>
+    </Modal>
+  );
+}
+
+function ConexaoCriada({ chave, fechar }: { chave: string; fechar: () => void }) {
+  const url = useUrlPublica();
+  return (
+    <Modal titulo="Token de conexão criado" aoFechar={fechar} largura={640}>
+      <div className="banner warn" style={{ marginTop: 14 }}>
+        <Icone nome="lock" />
+        <span>Esta é a única vez em que o token aparece. Use agora no <code>vs login</code>; o hub só guarda o hash.</span>
+      </div>
+      <Copiavel id="chave-conexao" texto={chave} rotulo="Token de conexão" />
+      <h3 className="token-passo">1. Conecte o terminal ao hub (cole o token quando pedir)</h3>
+      <Copiavel id="cmd-login" texto={`vs login url=${url}`} rotulo="Comando vs login" />
+      <h3 className="token-passo">2. Na pasta do projeto, ligue-a a um vault</h3>
+      <Copiavel id="cmd-init" texto="vs init vault=meu-projeto" rotulo="Comando vs init" />
+      <h3 className="token-passo">3. Documente com o agente (veja o AGENTS.md) e envie</h3>
+      <Copiavel id="cmd-sync" texto="vs sync" rotulo="Comando vs sync" />
+      <p className="muted" style={{ margin: "14px 0 0", fontSize: 13 }}>O primeiro <code>vs sync</code> cria o vault no modo do <code>.vs</code> (literal + documentado, por padrão). As notas que o agente escreveu entram já curadas.</p>
       <div className="modal-actions"><button className="btn primary" onClick={fechar}>Já guardei</button></div>
     </Modal>
   );

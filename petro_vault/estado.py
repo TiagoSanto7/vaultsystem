@@ -14,6 +14,13 @@ FUSO = datetime.timezone(datetime.timedelta(hours=-4))  # Cuiabá (America/Cuiab
 TAG = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 
 ESQUEMA = """
+-- Contas locais do hub (Vault System): login e senha (PBKDF2), sem AD.
+CREATE TABLE IF NOT EXISTS usuarios (
+    login TEXT PRIMARY KEY,
+    nome TEXT NOT NULL,
+    hash TEXT NOT NULL,
+    criado_em TEXT NOT NULL);
+
 CREATE TABLE IF NOT EXISTS credenciais (
     id INTEGER PRIMARY KEY,
     nome TEXT NOT NULL UNIQUE,
@@ -221,7 +228,10 @@ COLUNAS_NOVAS = [("fila", "revisar", "TEXT"), ("sistemas", "removido_em", "TEXT"
                  ("credenciais", "criado_por", "TEXT"), ("fila", "erro", "TEXT"), ("fila", "parado_em", "TEXT"),
                  ("origens", "leituras_antes", "TEXT"), ("origens", "removida_em", "TEXT"),
                  ("origens", "classificacao", "TEXT"), ("credenciais", "usado_em", "TEXT"),
-                 ("rodadas", "trabalhador", "TEXT")]
+                 ("rodadas", "trabalhador", "TEXT"),
+                 # Vault System: escopo da credencial ('vaults' ou 'workspace', o token de conexão da CLI)
+                 # e o modo do vault criado por envio ('literal' ou 'documentado').
+                 ("credenciais", "escopo", "TEXT NOT NULL DEFAULT 'vaults'"), ("sistemas", "modo", "TEXT")]
 ATIVOS = "SELECT tag FROM sistemas WHERE removido_em IS NULL ORDER BY tag"
 
 

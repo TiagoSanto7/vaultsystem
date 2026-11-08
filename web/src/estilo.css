@@ -605,3 +605,8 @@ details.ajustar .segredo textarea { white-space: pre-wrap; overflow-x: hidden; m
 .docs-corpo h2:first-of-type { border-top: 0; }
 .docs-corpo table { border-collapse: collapse; width: 100%; }
 .docs-corpo th, .docs-corpo td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+
+/* Vault System: escolha do tipo de token */
+.escolha-token { display: grid; gap: 10px; margin: 6px 0 16px; }
+.escolha-token .check { align-items: flex-start; gap: 10px; white-space: normal; color: var(--text); }
+.escolha-token .check input { margin-top: 2px; flex: none; }

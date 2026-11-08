@@ -25,7 +25,7 @@ import subprocess
 import sys
 import time
 
-from . import estado, github_app, historico, rodada
+from . import curadoria, estado, github_app, historico, rodada
 
 TRABALHADORES = int(os.environ.get("VAULT_TRABALHADORES", "3"))
 LOTES_POR_VEZ = os.environ.get("VAULT_LOTES_POR_VEZ", "3")
@@ -63,8 +63,10 @@ class Coordenador:
         for l in db.execute("SELECT p.tag, MIN(p.pedido_em) AS em FROM pulls p JOIN sistemas s ON s.tag = p.tag "
                             "WHERE p.atendido_em IS NULL AND s.removido_em IS NULL GROUP BY p.tag ORDER BY em"):
             por(l["tag"], "pull")
+        # Sem curadoria interna, a fila do LLM não anda: voltar ao vault só por ela seria um laço (a cada ESPERA s).
         com_fila = [l["tag"] for l in db.execute("SELECT DISTINCT f.tag FROM fila f JOIN sistemas s ON s.tag = f.tag "
-                                                 "WHERE f.estado = 'na_fila' AND s.removido_em IS NULL ORDER BY f.tag")]
+                                                 "WHERE f.estado = 'na_fila' AND s.removido_em IS NULL ORDER BY f.tag")
+                    ] if curadoria.disponivel() else []
         for tag in com_fila:
             if agora - self.ultima.get(tag, 0) >= VOLTA_DA_FILA:
                 por(tag, "fila")
@@ -153,6 +155,10 @@ def main(argv=None):
     args = argv if argv is not None else sys.argv[1:]
     db = estado.conectar()
     historico.interromper(db, "*")  # o que estava aberto é de antes de o container subir
+    # A tela lê daqui se há curadoria interna (o botão "Curar" só aparece com chave de API ativa).
+    historico._definir(db, "curadoria", {"disponivel": curadoria.disponivel(),
+                                         "provedor": os.environ.get("VAULT_CURADORIA_PROVEDOR") or
+                                         ("hermes" if curadoria.disponivel() else None)})
     c = Coordenador()
     print(f"[coordenador] {c.n} trabalhador(es); fatia de {LOTES_POR_VEZ} lote(s); "
           f"agenda a cada {historico.intervalo()} s", flush=True)

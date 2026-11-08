@@ -265,8 +265,9 @@ def sair(request: Request):
 def eu(adm=Depends(sessao.administrador)):
     with conectar() as db:
         p = db.execute("SELECT apresentacao_vista_em FROM preferencias WHERE login = ?", (adm["login"],)).fetchone()
+        curadoria = curadoria_interna(db)
     return {**adm, "papel": "administrador", "ambiente": _ambiente(), "url_publica": url_publica(),
-            "apresentacao_vista_em": p["apresentacao_vista_em"] if p else None}
+            "apresentacao_vista_em": p["apresentacao_vista_em"] if p else None, "curadoria": curadoria}
 
 
 # Endereço que os consumidores usam para a API e o MCP (decisão de 30/10: o IP do servidor).
@@ -321,11 +322,46 @@ def ver_sistema(tag: str, adm=Depends(sessao.administrador)):
         s = _sistema_ou_404(db, tag)
         d = sinais(db, tag)
         ultimo = _ultimo_pull(db, tag)
+        agente = db.execute("SELECT COUNT(*) FROM notas_indice WHERE tag = ? AND conteudo LIKE ?",
+                            (tag, "%\ncurada_por: agente\n%")).fetchone()[0]
+        curadoria = curadoria_interna(db)
     if s["removido_em"]:
         d["selo"] = {"estado": "removendo", "texto": "Removendo: o curador apaga a pasta da tag, o clone, os lotes "
                                                       "e o cadastro em até 30 s"}
     return {"tag": tag, "cadastro": {"por": s["criado_por"], "em": s["criado_em"]}, "removido_em": s["removido_em"],
-            "ultimo_pull": ultimo, **d}
+            "ultimo_pull": ultimo, "modo": s["modo"], "notas_do_agente": agente, "curadoria": curadoria, **d}
+
+
+def curadoria_interna(db):
+    """O que o curador publicou ao subir (coordenador): se há curadoria interna (chave de API) e qual."""
+    c = historico.ler_estado(db).get("curadoria") or {}
+    return {"disponivel": bool(c.get("disponivel")), "provedor": c.get("provedor")}
+
+
+@router.post("/sistemas/{tag}/curadoria", status_code=202)
+def pedir_curadoria(tag: str, adm=Depends(sessao.administrador)):
+    """Curadoria interna de um vault que só tem cópia literal (e notas do agente): troca a leitura
+    `referencia` pela que o curador escreve (código + cópia literal; num template, referência
+    explicada) e pede um pull. Só com chave de API ativa; sem ela, 409 (o botão nem aparece)."""
+    with conectar() as db:
+        s = _sistema_ou_404(db, tag)
+        if not curadoria_interna(db)["disponivel"]:
+            raise HTTPException(409, "Curadoria interna desligada: configure uma chave de API no hub.")
+        origens = db.execute("SELECT nome, ramo, leituras FROM origens WHERE tag = ? AND removida_em IS NULL",
+                             (tag,)).fetchall()
+    if s["removido_em"]:
+        raise HTTPException(409, "remoção do sistema já pedida")
+    alvo = "referencia-explicada" if tag.startswith(templates.PREFIXO) else "codigo-literal"
+    mudou = 0
+    for o in origens:
+        leituras = json.loads(o["leituras"] or "[]")
+        if not any(l.get("perfil") == "referencia" for l in leituras):
+            continue
+        novas = [{**l, "perfil": alvo if l.get("perfil") == "referencia" else l.get("perfil")} for l in leituras]
+        mudou += sistemas.editar_origem(tag, o["nome"], o["ramo"], novas)
+    if not mudou:
+        raise HTTPException(409, "Este vault já está com curadoria interna.")
+    return {"tag": tag, "perfil": alvo, "pedido": sistemas.pedir_pull(tag, adm["login"]), "estado": "pedido"}
 
 
 @router.get("/sistemas/{tag}/fila")
@@ -789,6 +825,7 @@ class NovaCredencial(BaseModel):
     nome: str = Field(min_length=1, max_length=64)
     ler: list[str] = Field(default_factory=list, max_length=100)
     escrever: list[str] = Field(default_factory=list, max_length=100)
+    workspace: bool = False  # token de conexão da CLI (vs login): todos os vaults, cria vault no vs sync
 
 
 class VaultsDoToken(BaseModel):
@@ -798,7 +835,8 @@ class VaultsDoToken(BaseModel):
 def _credencial_publica(l):
     return {"nome": l["nome"], "ler": _json(l["ler"], []), "escrever": _json(l["escrever"], []),
             "criado_em": l["criado_em"], "criado_por": l["criado_por"], "revogada_em": l["revogada_em"],
-            "usado_em": l["usado_em"], "estado": "revogada" if l["revogada_em"] else "ativa"}
+            "usado_em": l["usado_em"], "estado": "revogada" if l["revogada_em"] else "ativa",
+            "workspace": l.get("escopo") == credenciais.WORKSPACE}
 
 
 def _vaults_existem(tags):
@@ -815,15 +853,16 @@ def listar_credenciais(tag: str | None = None, adm=Depends(sessao.administrador)
     """A chave nunca aparece (só o hash está guardado). Com `tag`: só as que leem ou escrevem a tag."""
     saida = [_credencial_publica(l) for l in credenciais.listar()]
     if tag:
-        saida = [c for c in saida if tag in c["ler"] or tag in c["escrever"]]
+        saida = [c for c in saida if tag in c["ler"] or tag in c["escrever"] or c["workspace"]]
     return saida
 
 
 @router.post("/credenciais", status_code=201)
 def criar_credencial(dados: NovaCredencial, adm=Depends(sessao.administrador)):
-    _vaults_existem(dados.ler + dados.escrever)
+    if not dados.workspace:
+        _vaults_existem(dados.ler + dados.escrever)
     try:
-        chave = credenciais.criar(dados.nome, dados.ler, dados.escrever, por=adm["login"])
+        chave = credenciais.criar(dados.nome, dados.ler, dados.escrever, por=adm["login"], workspace=dados.workspace)
     except ValueError as e:
         raise HTTPException(400, str(e))
     except Exception as e:  # noqa: BLE001 - nome repetido (UNIQUE)
@@ -831,7 +870,9 @@ def criar_credencial(dados: NovaCredencial, adm=Depends(sessao.administrador)):
             raise HTTPException(409, f"Já existe uma credencial com o nome {dados.nome}.")
         raise
     return {"nome": dados.nome, "chave": chave,
-            "aviso": "Esta é a única vez em que a chave aparece. Guarde-a no .env do agente.",
+            "workspace": dados.workspace,
+            "aviso": "Esta é a única vez em que a chave aparece. Guarde-a no .env do agente."
+                     if not dados.workspace else "Esta é a única vez em que a chave aparece. Use em vs login.",
             "como_usar": "Authorization: Bearer <chave>"}
 
 

@@ -60,4 +60,11 @@ def test_cli_cria_vault_documentado_e_recusa_traversal(tela):
     assert r.status_code == 200, r.text
     with estado.conectar() as db:
         ingestao.ingerir(db, {"tag": tag})
-        assert db.execute("SELECT perfil FROM fila WHERE tag = ?", (tag,)).fetchone()[0] == "codigo"
+        # Vault System: documentado copia como está (sem LLM) e importa as notas do agente; a curadoria
+        # interna é uma ação à parte, só com chave de API.
+        assert db.execute("SELECT perfil FROM fila WHERE tag = ?", (tag,)).fetchone()[0] == "referencia"
+        assert db.execute("SELECT modo FROM sistemas WHERE tag = ?", (tag,)).fetchone()[0] == "documentado"
+    # o mesmo modo de novo só atualiza; outro modo é recusado
+    assert cliente.put(url, content=zip_de({"src/main.py": "print('oi')\n"}), headers=headers).status_code == 200
+    assert cliente.put(f"/v1/sistemas/{tag}/envio?modo=literal", content=zip_de({"a.md": "x"}),
+                       headers=headers).status_code == 409

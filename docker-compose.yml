@@ -38,10 +38,13 @@ services:
     restart: unless-stopped
     environment:
       TZ: America/Cuiaba
-      # Tela (DV-547): login das pessoas pelo AD (os mesmos servidores do painel
-      # do Petro Observer; LDAPS com a CA em api/certs) e sessão em cookie
-      # assinado. Sem VAULT_SESSAO_SEGREDO a tela fica desligada; a API dos
-      # agentes (credencial pv_) segue igual.
+      # Tela: contas locais do hub (Vault System; a primeira vem de
+      # VAULT_ADMIN_LOGIN e VAULT_ADMIN_SENHA) e, opcional, o AD (DV-547; LDAPS
+      # com a CA em api/certs). Sessão em cookie assinado. Sem
+      # VAULT_SESSAO_SEGREDO a tela fica desligada; a API dos agentes segue igual.
+      VAULT_ADMIN_LOGIN: ${VAULT_ADMIN_LOGIN:-}
+      VAULT_ADMIN_SENHA: ${VAULT_ADMIN_SENHA:-}
+      VAULT_ADMIN_NOME: ${VAULT_ADMIN_NOME:-}
       LDAP_SERVERS: ${LDAP_SERVERS:-}
       LDAP_DOMAIN: ${LDAP_DOMAIN:-}
       VAULT_ADMINS: ${VAULT_ADMINS:-}
@@ -74,8 +77,12 @@ services:
       TZ: America/Cuiaba
       VAULT_INTERVALO: ${VAULT_INTERVALO:-900}
       VAULT_LIMITE_BYTES: ${VAULT_LIMITE_BYTES:-262144}
-      # Curadoria com LLM (DV-291): token próprio do curador do petro-vault
-      # (claude setup-token). Vazio: os itens ficam na fila e o log avisa.
+      # Curadoria interna (opcional). Vault System: o padrão será uma chave de API
+      # (openai, anthropic ou gemini; ainda sem curador implementado). Hoje roda o
+      # curador Hermes (DV-291) com o token do Claude Code. Sem nada, não é erro: os
+      # vaults ficam com a cópia literal e as notas do agente local.
+      VAULT_CURADORIA_PROVEDOR: ${VAULT_CURADORIA_PROVEDOR:-}
+      VAULT_CURADORIA_CHAVE: ${VAULT_CURADORIA_CHAVE:-}
       CLAUDE_CODE_OAUTH_TOKEN: ${VAULT_CLAUDE_CODE_OAUTH_TOKEN:-}
       HERMES_HOME: /opt/curador/hermes
       VAULT_LOTE: ${VAULT_LOTE:-5}

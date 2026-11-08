@@ -51,7 +51,11 @@ export interface Eu {
   ambiente: string;
   url_publica: string;
   apresentacao_vista_em: string | null;
+  // Vault System: curadoria interna (LLM no hub) só com chave de API ativa; sem ela, nada de botão.
+  curadoria?: Curadoria;
 }
+
+export interface Curadoria { disponivel: boolean; provedor: string | null }
 
 export interface Commit { hash: string | null; data: string | null; url: string | null }
 
@@ -134,6 +138,9 @@ export interface Ignorados {
 export interface Sistema extends ResumoSistema {
   cadastro: { por: string; em: string };
   ultimo_pull: Pull | null;
+  modo?: "literal" | "documentado" | null; // Vault System: vault criado por envio (vs sync)
+  notas_do_agente?: number; // notas que o agente local preparou e entraram curadas
+  curadoria?: Curadoria;
 }
 
 export interface ItemFila {
@@ -216,4 +223,5 @@ export interface Credencial {
   revogada_em: string | null;
   usado_em: string | null;
   estado: "ativa" | "revogada";
+  workspace?: boolean; // token de conexão da CLI (vs login): todos os vaults, cria vault no vs sync
 }

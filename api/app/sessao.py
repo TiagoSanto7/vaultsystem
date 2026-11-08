@@ -1,4 +1,10 @@
-"""Login de pessoas pelo AD e sessão da tela (DV-547).
+"""Login de pessoas e sessão da tela (DV-547; contas locais no Vault System).
+
+Vault System: o padrão são contas locais do hub (tabela `usuarios`, senha em
+PBKDF2-SHA256), criadas com `python -m app.cli usuario <login>` ou, na
+primeira subida, por VAULT_ADMIN_LOGIN e VAULT_ADMIN_SENHA. Toda conta local
+administra o workspace. O AD continua opcional: só é tentado quando
+LDAP_SERVERS e LDAP_DOMAIN estão configurados e o login não é uma conta local.
 
 Duas portas: pessoas entram pela tela com o login da empresa (AD); agentes
 entram pela API com a credencial `pv_`. Aqui é a das pessoas. Adaptado do
@@ -13,8 +19,12 @@ importar código de lá:
   "Sem acesso a esta ferramenta" (a fase 2 muda isso);
 - sessão em cookie assinado (VAULT_SESSAO_SEGREDO), 12 h.
 """
+import base64
+import hashlib
+import hmac
 import logging
 import os
+import secrets
 import re
 import ssl
 import time
@@ -48,7 +58,76 @@ def normalizar(login):
 
 
 def administradores():
-    return {normalizar(l) for l in os.environ.get("VAULT_ADMINS", "").split(",") if normalizar(l)}
+    """Logins com acesso à tela: as contas locais e, para o AD, VAULT_ADMINS."""
+    do_ambiente = {normalizar(l) for l in os.environ.get("VAULT_ADMINS", "").split(",") if normalizar(l)}
+    from petro_vault.estado import conectar
+    with conectar() as db:
+        locais = {l["login"] for l in db.execute("SELECT login FROM usuarios")}
+    return do_ambiente | locais
+
+
+# --- contas locais ------------------------------------------------------------------
+
+ITERACOES = 310_000
+
+
+def hash_senha(senha, sal=None, iteracoes=ITERACOES):
+    sal = sal or secrets.token_bytes(16)
+    dk = hashlib.pbkdf2_hmac("sha256", senha.encode("utf-8"), sal, iteracoes)
+    return f"pbkdf2_sha256${iteracoes}${base64.b64encode(sal).decode()}${base64.b64encode(dk).decode()}"
+
+
+def conferir_senha(senha, guardado):
+    try:
+        _, it, sal, dk = guardado.split("$")
+        novo = hash_senha(senha, base64.b64decode(sal), int(it)).split("$")[3]
+    except (ValueError, TypeError):
+        return False
+    return hmac.compare_digest(novo, dk)
+
+
+def criar_usuario(login, senha, nome=None):
+    """Cria ou troca a senha de uma conta local. Devolve o login normalizado."""
+    from petro_vault.estado import agora, conectar
+    login = normalizar(login)
+    if not login:
+        raise ValueError("login inválido (use letras, números, ponto, hífen ou sublinhado)")
+    if len(senha or "") < 8:
+        raise ValueError("a senha precisa de pelo menos 8 caracteres")
+    with conectar() as db:
+        db.execute("INSERT INTO usuarios (login, nome, hash, criado_em) VALUES (?, ?, ?, ?) "
+                   "ON CONFLICT(login) DO UPDATE SET hash = excluded.hash, nome = excluded.nome",
+                   (login, nome or login, hash_senha(senha), agora()))
+    return login
+
+
+def usuario_local(login, senha):
+    """(existe, Usuario ou None): existe diz se o login é de uma conta local."""
+    from petro_vault.estado import conectar
+    login = normalizar(login)
+    if not login:
+        return False, None
+    with conectar() as db:
+        l = db.execute("SELECT login, nome, hash FROM usuarios WHERE login = ?", (login,)).fetchone()
+    if not l:
+        return False, None
+    return True, (Usuario(login=l["login"], nome=l["nome"]) if senha and conferir_senha(senha, l["hash"]) else None)
+
+
+def garantir_admin_do_ambiente():
+    """Primeira subida: VAULT_ADMIN_LOGIN e VAULT_ADMIN_SENHA criam a conta, se ainda não existe."""
+    login, senha = os.environ.get("VAULT_ADMIN_LOGIN", ""), os.environ.get("VAULT_ADMIN_SENHA", "")
+    if not login or not senha:
+        return None
+    from petro_vault.estado import conectar
+    with conectar() as db:
+        if db.execute("SELECT 1 FROM usuarios WHERE login = ?", (normalizar(login),)).fetchone():
+            return None
+    try:
+        return criar_usuario(login, senha, os.environ.get("VAULT_ADMIN_NOME") or None)
+    except ValueError as e:
+        logger.error("VAULT_ADMIN_LOGIN/VAULT_ADMIN_SENHA ignorados: %s", e)
+        return None
 
 
 def segredo_da_sessao():
@@ -115,12 +194,15 @@ def entrar(request: Request, ldap, login: str, senha: str):
     if any(_bloqueado(c) for c in chaves):
         logger.warning("login bloqueado por excesso de tentativas: %s de %s", quem, ip)
         raise HTTPException(429, "Muitas tentativas. Aguarde 5 minutos e tente de novo.")
-    if ldap is None:
-        raise HTTPException(503, "Login desligado: LDAP_SERVERS e LDAP_DOMAIN não configurados.")
-    try:
-        usuario = ldap.autenticar(login, senha)
-    except AdIndisponivel:
-        raise HTTPException(503, "Não foi possível falar com o AD agora. Tente de novo em instantes.")
+    local, usuario = usuario_local(login, senha)
+    if not local:
+        if ldap is None:
+            usuario = None  # sem AD configurado, só contas locais entram
+        else:
+            try:
+                usuario = ldap.autenticar(login, senha)
+            except AdIndisponivel:
+                raise HTTPException(503, "Não foi possível falar com o AD agora. Tente de novo em instantes.")
     if not usuario:
         for c in chaves:
             _erros[c].append(time.monotonic())
