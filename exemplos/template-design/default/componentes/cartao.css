@@ -1,0 +1,10 @@
+/* Cartão: agrupa um assunto. Borda fina, sem sombra pesada. */
+.vs-cartao {
+  padding: 24px;
+  border: 1px solid var(--vs-linha);
+  border-radius: 16px;
+  background: var(--vs-papel);
+}
+.vs-cartao--destaque { background: var(--vs-azul-nevoa); border-color: transparent; }
+.vs-cartao > h3 { margin: 0 0 8px; }
+.vs-cartao > p { margin: 0; color: var(--vs-tinta-suave); }

@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vault System · Abertura do CLI</title>
+<style>
+  :root {
+    color-scheme: light;
+    --blue: #0758ed;
+    --ink: #132448;
+    --muted: #536586;
+    --line: #dce7fa;
+    font: 16px system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: white; color: var(--ink); }
+  main { width: min(1060px, 92vw); margin: auto; padding: 7vh 0; }
+  .mono, .terminal, button { font-family: ui-monospace, Consolas, monospace; }
+  header {
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    padding-bottom: 1rem; border-bottom: 1px solid var(--line);
+    font-size: .75rem; letter-spacing: .09em;
+  }
+  header strong { color: var(--blue); }
+  header span { color: var(--muted); text-align: right; }
+  .stage {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.03fr);
+    align-items: center; gap: clamp(12px, 5vw, 64px); min-height: 500px;
+  }
+  .graph { width: 100%; height: auto; display: block; }
+  .orbit { fill: none; stroke: #cedeff; }
+  .link { fill: none; stroke: #9cbaff; stroke-width: 1.15; }
+  .point { fill: white; stroke: var(--blue); stroke-width: 1.65; }
+  .hub { fill: var(--blue); }
+  .pulse { fill: #2385ff; stroke: white; stroke-width: 1; }
+  .graph text { fill: var(--muted); font: 11px ui-monospace, Consolas, monospace; letter-spacing: 1.1px; }
+  .terminal {
+    min-width: 0; border: 1px solid var(--line); border-radius: 16px; overflow: hidden;
+    box-shadow: 0 22px 62px #16439013;
+  }
+  .bar, .panel { padding: 16px clamp(16px, 3vw, 30px); }
+  .bar { display: flex; align-items: center; gap: 7px; border-bottom: 1px solid var(--line); background: #f7faff; color: var(--muted); font-size: .76rem; }
+  .bar i { width: 7px; height: 7px; border-radius: 50%; background: #b8cefb; }
+  .bar i:first-child { background: var(--blue); }
+  .bar span { margin-left: 7px; }
+  .bar .mark { width: 23px; height: 23px; margin-left: auto; color: var(--blue); }
+  .panel { padding-block: 34px 30px; }
+  .command { margin: 0 0 14px; font-size: .88rem; color: var(--muted); }
+  .command b, .prompt { color: var(--blue); }
+  h1 { margin: 0; font-size: clamp(1.45rem, 4.15vw, 3rem); letter-spacing: -.065em; line-height: 1.2; white-space: nowrap; }
+  .caret { display: inline-block; width: .09em; height: .85em; margin-left: .12em; vertical-align: -.06em; background: var(--blue); }
+  .ready .caret { animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .meta { margin: 24px 0 0; padding-top: 15px; border-top: 1px solid var(--line); color: var(--muted); font-size: .78rem; }
+  .controls { border-top: 1px solid var(--line); padding-top: 16px; }
+  button { color: var(--blue); background: white; border: 1px solid #b9cff9; border-radius: 99px; padding: 10px 16px; cursor: pointer; }
+  button:hover { background: #eef5ff; }
+  button:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
+  @media (max-width: 720px) {
+    .stage { grid-template-columns: 1fr; gap: 0; padding: 12px 0 26px; }
+    .graph { max-width: 420px; margin: auto; }
+    h1 { font-size: clamp(1.4rem, 7vw, 2.5rem); }
+  }
+  @media (prefers-reduced-motion: reduce) { .ready .caret { animation: none; } }
+</style>
+<main>
+  <header class="mono"><strong>vault system</strong><span>ABERTURA DO CLI</span></header>
+  <section class="stage" aria-label="Prévia da identidade">
+    <svg class="graph" viewBox="0 0 440 390" role="img" aria-labelledby="graph-title">
+      <title id="graph-title">Grafo orbital azul. As fontes convergem no centro, que distribui contexto para o terminal e os agentes.</title>
+      <g class="orbit" aria-hidden="true">
+        <circle cx="187" cy="195" r="61"/>
+        <circle cx="187" cy="195" r="93"/>
+        <circle cx="187" cy="195" r="125"/>
+      </g>
+      <g class="link" aria-hidden="true">
+        <path id="source-a" d="M187 102C238 102 136 195 187 195"/>
+        <path id="source-b" d="M106 148C155 148 138 195 187 195"/>
+        <path id="source-c" d="M106 242C155 242 138 195 187 195"/>
+        <path id="source-d" d="M187 288C236 288 138 195 187 195"/>
+        <path id="route-cli" d="M187 195C266 195 263 135 360 135"/>
+        <path id="route-agent" d="M187 195C266 195 263 255 360 255"/>
+      </g>
+      <g class="point" aria-hidden="true">
+        <circle cx="187" cy="102" r="5"/><circle cx="106" cy="148" r="5"/>
+        <circle cx="106" cy="242" r="5"/><circle cx="187" cy="288" r="5"/>
+        <circle cx="268" cy="148" r="3"/><circle cx="268" cy="242" r="3"/>
+        <circle cx="360" cy="135" r="6"/><circle cx="360" cy="255" r="6"/>
+      </g>
+      <circle class="hub" cx="187" cy="195" r="18"/>
+      <circle cx="187" cy="195" r="6" fill="white"/>
+      <circle class="pulse" data-path="source-a" cx="187" cy="102" r="4"/>
+      <circle class="pulse" data-path="source-b" cx="106" cy="148" r="4"/>
+      <circle class="pulse" data-path="source-c" cx="106" cy="242" r="4"/>
+      <circle class="pulse" data-path="source-d" cx="187" cy="288" r="4"/>
+      <circle class="pulse" data-path="route-cli" cx="360" cy="135" r="4"/>
+      <circle class="pulse" data-path="route-agent" cx="360" cy="255" r="4"/>
+      <text x="360" y="114" text-anchor="middle">CLI</text>
+      <text x="360" y="283" text-anchor="middle">AGENTES</text>
+    </svg>
+    <div class="terminal">
+      <div class="bar">
+        <i></i><i></i><i></i><span>~/projeto · terminal</span>
+        <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="11" cy="12" r="8" fill="none" stroke="currentColor" opacity=".35"/>
+          <path d="M6 6l5 6-5 6m5-6 10-5m-10 5 10 5" fill="none" stroke="currentColor"/>
+          <g fill="currentColor">
+            <circle cx="6" cy="6" r="1.6"/><circle cx="6" cy="18" r="1.6"/>
+            <circle cx="21" cy="7" r="1.6"/><circle cx="21" cy="17" r="1.6"/>
+            <circle cx="11" cy="12" r="2.6"/>
+          </g>
+        </svg>
+      </div>
+      <div class="panel">
+        <p class="command"><b aria-hidden="true">$</b> vaultsystem</p>
+        <h1 aria-label="Vault System, VS CLI"><span aria-hidden="true"><span class="prompt">›</span> <span id="typed">VS CLI</span><span class="caret"></span></span></h1>
+        <p class="meta">Fontes conectadas · contexto distribuído</p>
+      </div>
+    </div>
+  </section>
+  <div class="controls"><button id="replay" type="button" hidden>↻ Rever animação</button></div>
+</main>
+<script>
+  const typed = document.querySelector('#typed');
+  const terminal = document.querySelector('.terminal');
+  const replay = document.querySelector('#replay');
+  const motion = matchMedia('(prefers-reduced-motion: reduce)');
+  const fullName = 'Vault System';
+  const shortName = 'VS CLI';
+  const packets = [...document.querySelectorAll('[data-path]')].map(dot => {
+    const path = document.getElementById(dot.dataset.path);
+    return { dot, path, length: path.getTotalLength() };
+  });
+
+  let start;
+  let frame;
+
+  function titleAt(ms) {
+    const typingEnd = fullName.length * 72;
+    const eraseStart = typingEnd + 850;
+    const eraseEnd = eraseStart + fullName.length * 37;
+    if (ms < typingEnd) return fullName.slice(0, Math.floor(ms / 72));
+    if (ms < eraseStart) return fullName;
+    if (ms < eraseEnd) return fullName.slice(0, fullName.length - Math.floor((ms - eraseStart) / 37));
+    return shortName.slice(0, Math.floor((ms - eraseEnd) / 85));
+  }
+
+  function placePacket(packet, progress) {
+    const point = packet.path.getPointAtLength(packet.length * progress);
+    packet.dot.setAttribute('cx', point.x);
+    packet.dot.setAttribute('cy', point.y);
+  }
+
+  // The display drives the frame rate. Timing stays the same at 60 or 120 Hz.
+  function render(now) {
+    start ??= now;
+    const ms = now - start;
+    const title = titleAt(ms);
+    if (typed.textContent !== title) typed.textContent = title;
+    terminal.classList.toggle('ready', title === shortName);
+    packets.forEach((packet, i) => {
+      const progress = ((ms + i * 540) % 3100) / 3100;
+      placePacket(packet, progress);
+      packet.dot.style.opacity = Math.sin(Math.PI * progress);
+    });
+    frame = requestAnimationFrame(render);
+  }
+
+  function play() {
+    cancelAnimationFrame(frame);
+    replay.hidden = motion.matches;
+    if (motion.matches) {
+      typed.textContent = shortName;
+      terminal.classList.remove('ready');
+      packets.forEach((packet, i) => {
+        placePacket(packet, i < 4 ? .38 : .72);
+        packet.dot.style.opacity = 1;
+      });
+      return;
+    }
+    start = undefined;
+    render(performance.now());
+  }
+
+  replay.addEventListener('click', play);
+  motion.addEventListener('change', play);
+  play();
+</script>
+</html>

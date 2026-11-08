@@ -1,0 +1,15 @@
+# Ambiente local do Vault System: hub (API + tela) e o processador de vaults, sem GitHub,
+# sem AD e sem curador LLM. O vault de conteúdo é um repositório git local (local/dados).
+# Preparar uma vez:  py -3 local/preparar.py      (cria local/.env e local/dados)
+# Subir:             docker compose --env-file local/.env -f docker-compose.yml -f local/docker-compose.local.yml up -d --build
+services:
+  vault-init:
+    volumes:
+      - ./local/dados/conteudo.git:/srv/conteudo.git
+  curador:
+    environment:
+      # O vault de conteúdo local é uma pasta do host: o git do container precisa confiar nela.
+      GIT_CONFIG_GLOBAL: /opt/vault-system/local/gitconfig
+    volumes:
+      - ./local/dados/conteudo.git:/srv/conteudo.git
+      - ./local/gitconfig:/opt/vault-system/local/gitconfig:ro

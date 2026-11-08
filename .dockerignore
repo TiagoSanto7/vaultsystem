@@ -1,0 +1,15 @@
+# Contexto do build da API é a raiz do repositório: nada de segredo nem estado.
+.env
+.git
+**/__pycache__
+.pytest_cache
+tests
+docs
+curador
+vault
+vault-base
+keys
+*.pem
+!api/certs/ad-ca.pem
+web/node_modules
+web/dist
