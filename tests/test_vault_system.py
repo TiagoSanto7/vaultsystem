@@ -242,13 +242,13 @@ def test_vs_init_e_sync_dry_run(tmp_path):
     r = _vs(["init"], projeto, env)
     assert r.returncode == 0, r.stderr
     vs = json.loads((projeto / ".vs").read_text())
-    assert vs["vault"] == "meu-projeto" and vs["modo"] == "documentado" and vs["versao"] == 2
+    assert vs["vault"] == "meu-projeto" and vs["mode"] == "documented" and vs["version"] == 3
     agents = (projeto / "AGENTS.md").read_text(encoding="utf-8")
     assert agents.startswith("# AGENTS.md\n\n<!-- vs:inicio") and "Regras minhas." in agents  # só a seção gerenciada
     assert _vs(["init", "vault=Outro_Nome"], projeto, env).returncode == 1
     assert _vs(["init", "vault=template-design"], projeto, env).returncode == 0
     vs = json.loads((projeto / ".vs").read_text())
-    assert vs["vault"] == "template-design" and vs["modo"] == "documentado"  # o modo já escolhido fica
+    assert vs["vault"] == "template-design" and vs["mode"] == "documented"  # o modo já escolhido fica
     (projeto / "docs").mkdir()
     (projeto / "docs" / "regra.md").write_text(NOTA_REGRA, encoding="utf-8")
     r = _vs(["sync", "--dry-run", "--json"], projeto, env)
@@ -287,3 +287,16 @@ def test_instaladores_da_cli_com_o_endereco_do_hub(tela, monkeypatch):
     assert cliente.get("/v1/cli/qualquer.txt").status_code == 404
     vs = cliente.get("/v1/cli/vs")
     assert vs.status_code == 200 and vs.text.startswith("#!")
+
+
+def test_cli_so_com_nomes_em_ingles(tmp_path):
+    env = {**os.environ, "VS_CLI": "1", "XDG_CONFIG_HOME": str(tmp_path / "cfg"), "VS_URL": "", "PYTHONUTF8": "1"}
+    env.pop("VS_TOKEN", None)
+    assert _vs(["init", "modo=literal"], tmp_path, env).returncode == 1  # parâmetro em português não existe
+    assert _vs(["init", "mode=documentado"], tmp_path, env).returncode == 1
+    assert _vs(["init", "vault=lit", "mode=literal"], tmp_path, env).returncode == 0
+    assert json.loads((tmp_path / ".vs").read_text())["mode"] == "literal"
+    for velho in ("versao", "ajuda"):
+        assert _vs([velho], tmp_path, env).returncode == 2
+    ajuda = _vs(["help"], tmp_path, env).stdout
+    assert "mode=literal|documented" in ajuda and "repo connect" in ajuda and "modo=" not in ajuda
