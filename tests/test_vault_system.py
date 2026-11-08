@@ -343,3 +343,24 @@ def test_vault_i_aceita_token_do_claude_setup_token(tela, monkeypatch):
         assert False
     except RuntimeError as e:
         assert "recusado" in str(e)
+
+
+def test_template_leva_arquivos_de_audio(tela, tmp_path, monkeypatch):
+    from vault_system import curadoria, estado, ingestao, literal
+    cliente, _, cred = tela
+    monkeypatch.setenv("VAULT_DIR", str(tmp_path / "vault"))
+    tag = "template-design"
+    h = {"Authorization": "Bearer " + cred.criar("autor", [tag], [tag])}
+    som = b"ID3\x03\x00\x00\x00" + bytes(range(256)) * 4
+    pacote = zip_de({"motion-vs/public/sfx/key.mp3": som, "motion-vs/README.md": "# Motion\n"})
+    r = cliente.put(f"/v1/sistemas/{tag}/envio?mode=documented", content=pacote, headers=h)
+    assert r.status_code == 200 and r.json()["arquivos"] == 2, r.text
+    (tmp_path / "vault" / "sistemas" / tag / "_meta").mkdir(parents=True)
+    with estado.conectar() as db:
+        ingestao.ingerir(db, {"tag": tag})
+        literal.copiar(db, tag)
+        curadoria.avancar(db, tag)
+    z = cliente.get("/v1/templates/design/motion-vs.zip", headers=h)
+    assert z.status_code == 200, z.text
+    with zipfile.ZipFile(io.BytesIO(z.content)) as arq:
+        assert arq.read("public/sfx/key.mp3") == som
