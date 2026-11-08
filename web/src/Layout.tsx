@@ -66,6 +66,9 @@ function Perfil() {
             <b style={{ fontWeight: 500 }}>{eu.nome}</b>
             <small style={{ display: "block" }}>{eu.login} · {eu.papel}</small>
           </div>
+          <button role="menuitem" onClick={() => { setAberto(false); ir("/configuracoes"); }}>
+            <Icone nome="gear" /> Configurações
+          </button>
           <button role="menuitem" onClick={async () => { await marcarApresentacao(false); ir("/apresentacao"); }}>
             <Icone nome="help" /> Rever apresentação
           </button>

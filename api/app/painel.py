@@ -19,7 +19,7 @@ import re
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
-from petro_vault import arquivos, arvore, estado, github_app, historico, infra, mapa, templates
+from petro_vault import arquivos, arvore, estado, github_app, historico, infra, mapa, templates, vault_i
 from petro_vault.estado import conectar, url_arquivo, url_commit, url_repo  # noqa: F401 - url_* também usados nos testes
 
 from . import baixar, credenciais, envio, renderizacao, sessao, sistemas
@@ -325,6 +325,8 @@ def ver_sistema(tag: str, adm=Depends(sessao.administrador)):
         agente = db.execute("SELECT COUNT(*) FROM notas_indice WHERE tag = ? AND conteudo LIKE ?",
                             (tag, "%\ncurada_por: agente\n%")).fetchone()[0]
         curadoria = curadoria_interna(db)
+        ultima = vault_i.listar(db, tag, 1)
+        curadoria["ultima"] = {k: ultima[0][k] for k in ("id", "estado", "pedido_em", "fim", "notas", "erro", "via")} if ultima else None
     if s["removido_em"]:
         d["selo"] = {"estado": "removendo", "texto": "Removendo: o curador apaga a pasta da tag, o clone, os lotes "
                                                       "e o cadastro em até 30 s"}
@@ -333,35 +335,64 @@ def ver_sistema(tag: str, adm=Depends(sessao.administrador)):
 
 
 def curadoria_interna(db):
-    """O que o curador publicou ao subir (coordenador): se há curadoria interna (chave de API) e qual."""
-    c = historico.ler_estado(db).get("curadoria") or {}
-    return {"disponivel": bool(c.get("disponivel")), "provedor": c.get("provedor")}
+    """Vault-I: há chave de API configurada? A curadoria nunca é automática; o botão só aparece com ela."""
+    c = vault_i.configuracao(db)
+    return {"disponivel": bool(c), "provedor": c["provedor"] if c else None, "modelo": c["modelo"] if c else None}
 
 
 @router.post("/sistemas/{tag}/curadoria", status_code=202)
 def pedir_curadoria(tag: str, adm=Depends(sessao.administrador)):
-    """Curadoria interna de um vault que só tem cópia literal (e notas do agente): troca a leitura
-    `referencia` pela que o curador escreve (código + cópia literal; num template, referência
-    explicada) e pede um pull. Só com chave de API ativa; sem ela, 409 (o botão nem aparece)."""
+    """Pede ao Vault-I que cure o vault agora (sob demanda; nunca automático). 409 sem chave de API."""
     with conectar() as db:
         s = _sistema_ou_404(db, tag)
-        if not curadoria_interna(db)["disponivel"]:
-            raise HTTPException(409, "Curadoria interna desligada: configure uma chave de API no hub.")
-        origens = db.execute("SELECT nome, ramo, leituras FROM origens WHERE tag = ? AND removida_em IS NULL",
-                             (tag,)).fetchall()
-    if s["removido_em"]:
-        raise HTTPException(409, "remoção do sistema já pedida")
-    alvo = "referencia-explicada" if tag.startswith(templates.PREFIXO) else "codigo-literal"
-    mudou = 0
-    for o in origens:
-        leituras = json.loads(o["leituras"] or "[]")
-        if not any(l.get("perfil") == "referencia" for l in leituras):
-            continue
-        novas = [{**l, "perfil": alvo if l.get("perfil") == "referencia" else l.get("perfil")} for l in leituras]
-        mudou += sistemas.editar_origem(tag, o["nome"], o["ramo"], novas)
-    if not mudou:
-        raise HTTPException(409, "Este vault já está com curadoria interna.")
-    return {"tag": tag, "perfil": alvo, "pedido": sistemas.pedir_pull(tag, adm["login"]), "estado": "pedido"}
+        if s["removido_em"]:
+            raise HTTPException(409, "remoção do sistema já pedida")
+        try:
+            pid, ja = vault_i.pedir(db, tag, adm["login"], "painel")
+        except vault_i.SemConfiguracao as e:
+            raise HTTPException(409, str(e))
+    return {"tag": tag, "pedido": pid, "ja_havia": ja, "estado": "pedida"}
+
+
+@router.get("/sistemas/{tag}/curadorias")
+def ver_curadorias(tag: str, adm=Depends(sessao.administrador)):
+    with conectar() as db:
+        _sistema_ou_404(db, tag)
+        lista = vault_i.listar(db, tag)
+    for c in lista:
+        c["detalhe"] = _json(c["detalhe"], None)
+    return {"curadorias": lista}
+
+
+# --- configurações: Vault-I ---------------------------------------------------------------
+
+class ConfigVaultI(BaseModel):
+    provedor: str
+    modelo: str = ""
+    chave: str = Field(default="", max_length=400)
+
+
+@router.get("/vault-i")
+def ver_vault_i(adm=Depends(sessao.administrador)):
+    with conectar() as db:
+        return vault_i.publica(db)
+
+
+@router.put("/vault-i")
+def salvar_vault_i(dados: ConfigVaultI, adm=Depends(sessao.administrador)):
+    with conectar() as db:
+        try:
+            vault_i.salvar(db, dados.provedor, dados.modelo, dados.chave, adm["login"])
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        return vault_i.publica(db)
+
+
+@router.delete("/vault-i")
+def remover_vault_i(adm=Depends(sessao.administrador)):
+    with conectar() as db:
+        vault_i.remover(db)
+        return vault_i.publica(db)
 
 
 @router.get("/sistemas/{tag}/fila")

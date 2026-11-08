@@ -161,6 +161,31 @@ CREATE TABLE IF NOT EXISTS preferencias (
     login TEXT PRIMARY KEY,
     apresentacao_vista_em TEXT);
 
+-- Configurações do hub (Vault System). vault_i: provedor, modelo e chave de API
+-- da curadoria interna (a chave nunca sai pela API; só os 4 últimos caracteres).
+CREATE TABLE IF NOT EXISTS configuracoes (
+    chave TEXT PRIMARY KEY,
+    valor TEXT NOT NULL,
+    atualizado_em TEXT NOT NULL,
+    atualizado_por TEXT);
+
+-- Pedidos de curadoria do Vault-I: nunca automática. Vêm do painel ("Curar com
+-- Vault-I") ou do `vs sync --curate`; o curador atende um por vez, por vault.
+-- estado: pedida, em_curso, feita, erro.
+CREATE TABLE IF NOT EXISTS curadorias (
+    id INTEGER PRIMARY KEY,
+    tag TEXT NOT NULL,
+    pedido_em TEXT NOT NULL,
+    pedido_por TEXT,
+    via TEXT NOT NULL,
+    estado TEXT NOT NULL DEFAULT 'pedida',
+    inicio TEXT,
+    fim TEXT,
+    notas INTEGER,
+    erro TEXT,
+    detalhe TEXT);
+CREATE INDEX IF NOT EXISTS curadorias_tag ON curadorias (tag, estado);
+
 -- Pedido de pull: a API registra, o curador atende (só ele tem as chaves das
 -- origens). resultado: JSON com commits, itens e ignorados, ou o erro.
 CREATE TABLE IF NOT EXISTS pulls (

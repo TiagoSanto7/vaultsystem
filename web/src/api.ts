@@ -55,7 +55,13 @@ export interface Eu {
   curadoria?: Curadoria;
 }
 
-export interface Curadoria { disponivel: boolean; provedor: string | null }
+export interface Curadoria {
+  disponivel: boolean;
+  provedor: string | null;
+  modelo?: string | null;
+  // Último pedido ao Vault-I neste vault (só na página do vault).
+  ultima?: { id: number; estado: "pedida" | "em_curso" | "feita" | "erro"; pedido_em: string; fim: string | null; notas: number | null; erro: string | null; via: string } | null;
+}
 
 export interface Commit { hash: string | null; data: string | null; url: string | null }
 

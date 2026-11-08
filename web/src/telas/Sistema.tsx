@@ -59,8 +59,8 @@ export default function Sistema() {
   async function pedirCuradoria() {
     setCurando(true);
     try {
-      await api(`/sistemas/${tag}/curadoria`, { metodo: "POST" });
-      avisar("Curadoria interna pedida. O curador escreve as notas na próxima volta.");
+      const r = await api<{ pedido: number; ja_havia: boolean }>(`/sistemas/${tag}/curadoria`, { metodo: "POST" });
+      avisar(r.ja_havia ? `A curadoria #${r.pedido} já estava pedida.` : `Curadoria #${r.pedido} pedida ao Vault-I. As notas aparecem em Conhecimento quando terminar.`);
       recarregar();
     } catch (x) {
       avisar((x as Error).message);
@@ -80,9 +80,8 @@ export default function Sistema() {
   }
 
   const removendo = !!s.removido_em;
-  // Só cópia literal (com ou sem notas do agente): a curadoria interna é opcional e precisa de chave de API.
-  const soLiteral = s.origens.length > 0 && s.origens.every((o) => o.leituras.every((l) => l.perfil === "referencia"));
-  const podeCurar = !!s.curadoria?.disponivel && soLiteral && !removendo;
+  // Vault-I: curadoria sob demanda, só com chave de API configurada (Configurações). Nunca automática.
+  const podeCurar = !!s.curadoria?.disponivel && !removendo;
   const conteudo = {
     "": <VisaoGeral s={s} recarregar={recarregar} />,
     fontes: <Fontes s={s} recarregar={recarregar} />,
@@ -106,6 +105,7 @@ export default function Sistema() {
               {plural(s.origens.length, "origem", "origens")} · {plural(s.sinais.notas, "nota", "notas")} · cadastrado por {s.cadastro.por}
               {s.modo && <> · modo {s.modo === "documentado" ? "literal + documentado" : "literal"}</>}
               {!!s.notas_do_agente && <> · {plural(s.notas_do_agente, "nota curada pelo agente", "notas curadas pelo agente")}</>}
+              {s.curadoria?.ultima && <> · Vault-I: {{ pedida: "curadoria pedida", em_curso: "curando agora", feita: `curou ${plural(s.curadoria.ultima.notas ?? 0, "nota", "notas")}`, erro: "curadoria com erro" }[s.curadoria.ultima.estado]}</>}
             </p>
           </div>
         </div>
@@ -113,7 +113,7 @@ export default function Sistema() {
           <Selo estado={s.selo.estado} titulo={s.selo.texto} />
           {podeCurar && (
             <button className="btn" onClick={pedirCuradoria} disabled={curando}>
-              <Icone nome="spark" />{curando ? "Pedindo…" : "Curar no hub"}
+              <Icone nome="spark" />{curando ? "Pedindo…" : "Curar com Vault-I"}
             </button>
           )}
           <button className="btn primary" onClick={pedirPull} disabled={pedindo || removendo || s.pull_pendente !== null}>

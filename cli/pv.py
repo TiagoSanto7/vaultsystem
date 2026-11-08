@@ -17,6 +17,7 @@ Comandos:
         modo=literal|documentado       padrão: documentado (vault template-*: literal)
     pv sync                            empacota a pasta e envia ao vault do .vs (cria no 1º envio)
         --dry-run                      só lista o que iria
+        --curate                       pede a curadoria do Vault-I (precisa de chave de API no hub)
     pv sync <vault> <arquivo.zip>       envia um ZIP pronto para o vault
         modo=literal|documentado      cria o vault ao enviar o primeiro snapshot
     pv add template <tipo:nome>        baixa o template na pasta atual
@@ -419,8 +420,18 @@ def _e_nota(caminho):
     return bool(m and re.search(r"(?m)^vs:\s*[a-z]+\s*(#.*)?$", m.group(1)))
 
 
-def _enviar(tag, pacote, modo):
-    return pedir(f"/v1/sistemas/{tag}/envio", token(), pacote=pacote, query=f"?modo={modo}" if modo else None)
+def _enviar(tag, pacote, modo, curar=False):
+    query = "&".join(q for q in (f"modo={modo}" if modo else "", "curar=true" if curar else "") if q)
+    return pedir(f"/v1/sistemas/{tag}/envio", token(), pacote=pacote, query=f"?{query}" if query else None)
+
+
+def _texto_curadoria(r):
+    c = r.get("curadoria")
+    if not c:
+        return ""
+    if c.get("estado") == "pedida":
+        return f"\nCuradoria do Vault-I pedida (#{c.get('pedido')}): as notas aparecem no hub quando terminar."
+    return f"\nCuradoria do Vault-I não pedida: {c.get('motivo')}"
 
 
 def cmd_sync(pos, params, flags):
@@ -428,21 +439,22 @@ def cmd_sync(pos, params, flags):
         return _sync_projeto(params, flags)
     modo = params.get("modo")
     if (len(pos) != 2 or set(params) - {"modo"} or modo not in (None, *MODOS)
-            or flags - {"json"} or not TAG.fullmatch(pos[0])):
-        raise Erro(f"uso: {cli()} sync [--dry-run]   (na pasta preparada pelo {cli()} init)\n"
-                   f"  ou: {cli()} sync <vault> <arquivo.zip> [modo=literal|documentado] [--json]")
+            or flags - {"json", "curate"} or not TAG.fullmatch(pos[0])):
+        raise Erro(f"uso: {cli()} sync [--dry-run] [--curate]   (na pasta preparada pelo {cli()} init)\n"
+                   f"  ou: {cli()} sync <vault> <arquivo.zip> [modo=literal|documentado] [--curate] [--json]")
     tag, caminho = pos
     with open(caminho, "rb") as f:
         pacote = f.read(LIMITE_PACOTE + 1)
     if len(pacote) > LIMITE_PACOTE or not zipfile.is_zipfile(io.BytesIO(pacote)):
         raise Erro("informe um ZIP válido de até 10 MB")
-    r = _enviar(tag, pacote, modo)
-    saida(r, "json" in flags, f"Snapshot recebido: {r['arquivos']} arquivo(s) · {r['commit'][:12]}. Processamento solicitado.")
+    r = _enviar(tag, pacote, modo, "curate" in flags)
+    saida(r, "json" in flags, f"Snapshot recebido: {r['arquivos']} arquivo(s) · {r['commit'][:12]}. "
+                              f"Processamento solicitado.{_texto_curadoria(r)}")
 
 
 def _sync_projeto(params, flags):
-    if set(params) - {"dir"} or flags - {"json", "dry-run"}:
-        raise Erro(f"uso: {cli()} sync [dir=<pasta>] [--dry-run] [--json]")
+    if set(params) - {"dir"} or flags - {"json", "dry-run", "curate"}:
+        raise Erro(f"uso: {cli()} sync [dir=<pasta>] [--dry-run] [--curate] [--json]")
     raiz = os.path.abspath(params.get("dir") or ".")
     vs = _ler_vs(raiz)
     if vs is None:
@@ -466,12 +478,12 @@ def _sync_projeto(params, flags):
               + (f"\n* nota do agente ({len(notas)}): entra curada no modo documentado" if notas else "")
               + "\nNada foi enviado (--dry-run).")
         return 0
-    r = _enviar(tag, _empacotar(raiz, nomes), modo)
+    r = _enviar(tag, _empacotar(raiz, nomes), modo, "curate" in flags)
     r.update({"vault": tag, "modo": modo, "notas_do_agente": len(notas)})
     saida(r, "json" in flags,
           f"Enviado para {tag} ({modo}): {r['arquivos']} arquivo(s) · revisão {r['commit'][:12]}"
           + (f" · {len(notas)} nota(s) do agente" if notas and modo == "documentado" else "")
-          + f".\nO hub processa em instantes: {hub}/sistemas/{tag}")
+          + f".\nO hub processa em instantes: {hub}/sistemas/{tag}" + _texto_curadoria(r))
     return 0
 
 

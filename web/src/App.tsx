@@ -5,6 +5,7 @@ import { useSessao } from "./sessao";
 import Apresentacao from "./telas/Apresentacao";
 import Cadastrar from "./telas/Cadastrar";
 import Cli from "./telas/Cli";
+import Configuracoes from "./telas/Configuracoes";
 import Docs from "./telas/Docs";
 import Entrar from "./telas/Entrar";
 import Inicio from "./telas/Inicio";
@@ -41,6 +42,7 @@ export default function App() {
         <Route path="/sistemas/:tag" element={<Sistema />} />
         <Route path="/sistemas/:tag/:aba" element={<Sistema />} />
         <Route path="/tokens" element={<Tokens />} />
+        <Route path="/configuracoes" element={<Configuracoes />} />
         <Route path="/docs" element={<Docs />} />
         <Route path="/docs/:pagina" element={<Docs />} />
         <Route path="*" element={<Navigate to="/" replace />} />

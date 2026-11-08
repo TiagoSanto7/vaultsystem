@@ -6,6 +6,7 @@ const caminhos: Record<string, string> = {
   arrow: '<path d="M5 12h14m-5-5 5 5-5 5"/>',
   back: '<path d="M19 12H5m5-5-5 5 5 5"/>',
   chevron: '<path d="m9 5 7 7-7 7"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M4.9 4.9 7 7m10 10 2.1 2.1M2 12h3m14 0h3M4.9 19.1 7 17m10-10 2.1-2.1"/>',
   check: '<path d="m5 12 4 4L19 6"/>',
   shield: '<path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6z"/><path d="m8 12 3 3 5-6"/>',
   git: '<circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="6" r="2"/><path d="M6 7v10m12-9c0 5-12 2-12 9"/>',

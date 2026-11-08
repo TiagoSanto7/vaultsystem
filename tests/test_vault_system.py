@@ -32,7 +32,7 @@ def test_conta_local_entra_sem_ad(tela):
     r = entrar(cliente, "tiago", "senha-forte-1")
     assert r.status_code == 200 and r.json()["login"] == "tiago"
     eu = cliente.get("/v1/painel/eu").json()
-    assert eu["login"] == "tiago" and eu["curadoria"] == {"disponivel": False, "provedor": None}
+    assert eu["login"] == "tiago" and eu["curadoria"]["disponivel"] is False
 
 
 def test_conta_inicial_pelo_ambiente(tela, monkeypatch):
@@ -126,19 +126,83 @@ def test_modo_literal_nao_importa_notas(tela, tmp_path, monkeypatch):
     assert not (tmp_path / "vault" / "sistemas" / "lit" / "regras").exists()
 
 
-def test_curadoria_interna_so_com_chave(tela):
-    cliente, sistemas_, cred = tela
+CHAVE_FALSA = "sk-ant-teste-" + "x" * 30
+
+
+def test_vault_i_configuracao_nunca_devolve_a_chave(tela):
+    cliente, _, _ = tela
+    entrar(cliente)
+    v = cliente.get("/v1/painel/vault-i").json()
+    assert v["configurada"] is False and [p["id"] for p in v["provedores"]] == ["anthropic", "openai"]
+    assert cliente.put("/v1/painel/vault-i", json={"provedor": "anthropic", "chave": ""}).status_code == 400
+    assert cliente.put("/v1/painel/vault-i", json={"provedor": "outro", "chave": CHAVE_FALSA}).status_code == 400
+    r = cliente.put("/v1/painel/vault-i", json={"provedor": "anthropic", "chave": CHAVE_FALSA})
+    assert r.status_code == 200 and r.json()["modelo"] == "claude-opus-5-5"
+    assert CHAVE_FALSA not in r.text and r.json()["chave_final"] == "…xxxx"
+    # trocar só o modelo mantém a chave; trocar de provedor pede chave nova
+    assert cliente.put("/v1/painel/vault-i", json={"provedor": "anthropic", "modelo": "claude-sonnet-5-5"}).json()["modelo"] == "claude-sonnet-5-5"
+    assert cliente.put("/v1/painel/vault-i", json={"provedor": "openai"}).status_code == 400
+    assert cliente.get("/v1/painel/eu").json()["curadoria"]["disponivel"] is True
+    assert cliente.delete("/v1/painel/vault-i").json()["configurada"] is False
+
+
+def test_curadoria_so_sob_demanda_e_com_chave(tela):
+    cliente, _, cred = tela
     h = {"Authorization": "Bearer " + cred.criar("autor", ["sem-chave"], ["sem-chave"])}
-    cliente.put("/v1/sistemas/sem-chave/envio?modo=documentado", content=zip_de({"a.py": "x\n"}), headers=h)
+    r = cliente.put("/v1/sistemas/sem-chave/envio?modo=documentado&curar=true", content=zip_de({"a.py": "x\n"}), headers=h)
+    assert r.json()["curadoria"]["estado"] == "indisponivel"  # sem chave: o envio passa, a curadoria não é pedida
     entrar(cliente)
     r = cliente.post("/v1/painel/sistemas/sem-chave/curadoria")
     assert r.status_code == 409 and "chave de API" in r.json()["detail"]
-    from petro_vault import estado, historico
+    cliente.put("/v1/painel/vault-i", json={"provedor": "anthropic", "chave": CHAVE_FALSA})
+    from petro_vault import estado, vault_i
     with estado.conectar() as db:
-        historico._definir(db, "curadoria", {"disponivel": True, "provedor": "hermes"})
+        assert vault_i.pendentes(db) == []  # com chave, nada acontece sozinho
     r = cliente.post("/v1/painel/sistemas/sem-chave/curadoria")
-    assert r.status_code == 202 and r.json()["perfil"] == "codigo-literal"
-    assert cliente.post("/v1/painel/sistemas/sem-chave/curadoria").status_code == 409  # já curado
+    assert r.status_code == 202 and r.json()["ja_havia"] is False
+    assert cliente.post("/v1/painel/sistemas/sem-chave/curadoria").json()["ja_havia"] is True
+    r = cliente.put("/v1/sistemas/sem-chave/envio?curar=true", content=zip_de({"a.py": "y\n"}), headers=h)
+    assert r.json()["curadoria"]["estado"] == "pedida"
+    with estado.conectar() as db:
+        assert vault_i.pendentes(db) == ["sem-chave"]
+    assert cliente.get("/v1/painel/sistemas/sem-chave").json()["curadoria"]["ultima"]["estado"] == "pedida"
+
+
+def test_vault_i_escreve_notas_com_origem(tela, tmp_path, monkeypatch):
+    from petro_vault import estado, notas, vault_i
+    cliente, _, cred = tela
+    monkeypatch.setenv("VAULT_DIR", str(tmp_path / "vault"))
+    tag = "precos"
+    h = {"Authorization": "Bearer " + cred.criar("autor", [tag], [tag])}
+    pacote = {"app/precos.py": "DESCONTO = 0.15\n", "docs/vs/desconto.md": NOTA_REGRA}
+    cliente.put(f"/v1/sistemas/{tag}/envio?modo=documentado", content=zip_de(pacote), headers=h)
+    (tmp_path / "vault" / "sistemas" / tag / "_meta").mkdir(parents=True)
+    _processar(tag)
+    vistos = []
+
+    def chamar_falso(config, pedido):
+        vistos.append(pedido)
+        return [{"tipo": "modulo", "titulo": "Módulo de preços", "origens": ["app/precos.py", "inventado.py"],
+                 "corpo": "Calcula preços."},
+                {"tipo": "regra", "titulo": "Sem origem", "origens": ["nao/existe.py"], "corpo": "x"}]
+
+    monkeypatch.setattr(vault_i, "chamar", chamar_falso)
+    with estado.conectar() as db:
+        vault_i.salvar(db, "anthropic", "", CHAVE_FALSA, "tiago")
+        assert vault_i.atender(db, tag) is None  # nada pedido, nada feito
+        vault_i.pedir(db, tag, "tiago", "painel")
+        assert vault_i.atender(db, tag) == 1
+        c = vault_i.listar(db, tag)[0]
+    assert c["estado"] == "feita" and c["notas"] == 1
+    assert "=== app/precos.py ===" in vistos[0] and "docs/vs/desconto.md" not in vistos[0]  # a nota do agente não vai
+    assert "Desconto máximo" in vistos[0]  # o modelo vê o que já existe
+    cab, corpo = notas.ler(str(tmp_path / "vault" / "sistemas" / tag / "modulos" / "modulo-de-precos.md"))
+    assert cab["curada_por"] == "vault-i" and cab["origens"] == ["envio-local:app/precos.py"]
+    assert cab["modelo"] == "anthropic:claude-opus-5-5" and corpo.startswith("# Módulo de preços")
+    assert (tmp_path / "vault" / "sistemas" / tag / "regras" / "desconto.md").exists()  # a do agente fica
+    with estado.conectar() as db:
+        from petro_vault import verificacao
+        assert verificacao.verificar(db, tag) == []
 
 
 def test_sem_chave_de_api_a_fila_nao_vira_laco(monkeypatch, tmp_path):

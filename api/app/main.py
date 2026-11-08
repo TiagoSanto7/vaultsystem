@@ -61,11 +61,21 @@ def exigir_tag(cred, tag, modo):
 
 
 @app.put("/v1/sistemas/{tag}/envio")
-async def sincronizar_envio(tag: str, request: Request, modo: str | None = None, cred=Depends(credencial)):
+async def sincronizar_envio(tag: str, request: Request, modo: str | None = None, curar: bool = False,
+                            cred=Depends(credencial)):
     exigir_tag(cred, tag, "escrever")
     # Token de conexão: quem envia é o dono do workspace (vs sync); outro token, pelo nome dele.
     por = cred["dono"] if cred.get("workspace") and cred.get("dono") else cred["nome"]
-    return await envio.receber(request, tag, por, modo)
+    r = await envio.receber(request, tag, por, modo)
+    if curar:  # vs sync --curate: pede a curadoria do Vault-I (nunca automática)
+        from petro_vault import vault_i
+        with credenciais.conectar() as db:
+            try:
+                pid, _ = vault_i.pedir(db, tag, por, "cli")
+                r["curadoria"] = {"estado": "pedida", "pedido": pid}
+            except vault_i.SemConfiguracao as e:
+                r["curadoria"] = {"estado": "indisponivel", "motivo": str(e)}
+    return r
 
 
 @app.get("/v1/eu")

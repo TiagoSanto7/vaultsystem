@@ -17,7 +17,7 @@ import os
 import shutil
 import sys
 
-from . import curadoria, estado, github_app, historico, ingestao, notas, verificacao
+from . import curadoria, estado, github_app, historico, ingestao, notas, vault_i, verificacao
 
 
 def remover_cadastros(db, pular=()):
@@ -70,6 +70,8 @@ def main(argv=None):
     resultado = "erro"
     try:
         falhou = curadoria.main(tags)  # um sistema com erro não impede a verificação dos outros
+        for t in tags:
+            vault_i.atender(db, t)  # Vault-I: só o que foi pedido (painel ou vs sync --curate)
         problemas = verificacao.main(tags)
         resultado = "erro" if falhou else "com problemas na verificação" if problemas else "concluída"
     finally:
@@ -91,6 +93,7 @@ def um_vault(tag, motivo="agenda"):
     resultado = "erro"
     try:
         falhou = curadoria.main([tag])
+        vault_i.atender(db, tag)  # Vault-I: só o que foi pedido (painel ou vs sync --curate)
         problemas = verificacao.main([tag])
         resultado = "erro" if falhou else "com problemas na verificação" if problemas else "concluída"
     finally:

@@ -116,11 +116,20 @@ vs add template design:default dir=interface --dry-run
 `add template` nunca sobrescreve sem `--force` e registra a revisão aplicada em
 `.vaultsystem/templates.json`.
 
-## Curadoria no hub
+## Curadoria no hub (Vault-I)
 
-Sem chave de API, o hub não cura nada sozinho, e isso não é erro: o vault fica
-com os arquivos e as notas do agente. Com uma chave ativa, o botão
-**Curar no hub** aparece nos vaults que só têm a cópia literal.
+O Vault-I é a curadoria interna do hub, com a chave de API do Claude ou da
+OpenAI configurada em **Configurações** (menu do avatar). Ela **nunca roda
+sozinha**: só quando você pede, pelo botão **Curar com Vault-I** de um vault ou
+no envio:
+
+```
+vs sync --curate
+```
+
+Sem chave, isso não é erro: o envio passa normalmente e o vault fica com os
+arquivos e as notas do agente. As notas do Vault-I levam `curada_por: vault-i` e
+são refeitas a cada pedido; as notas do agente do projeto têm prioridade.
 
 ## Todos os comandos
 
