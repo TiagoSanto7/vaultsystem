@@ -32,6 +32,8 @@ PERMITIDOS = {
     ".woff": "font/woff", ".woff2": "font/woff2", ".ttf": "font/ttf", ".otf": "font/otf",
     ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp",
     ".svg": "image/svg+xml", ".ico": "image/x-icon", ".pdf": "application/pdf",
+    # Áudio: efeitos sonoros e trilhas de templates (ex.: design:motion-vs).
+    ".mp3": "audio/mpeg", ".wav": "audio/wav", ".ogg": "audio/ogg", ".m4a": "audio/mp4",
 }
 LIMITE = 5 * 1024 * 1024
 LIMITE_PACOTE = 40 * 1024 * 1024
