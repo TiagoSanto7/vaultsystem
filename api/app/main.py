@@ -62,14 +62,15 @@ def exigir_tag(cred, tag, modo):
 
 @app.put("/v1/sistemas/{tag}/envio")
 async def sincronizar_envio(tag: str, request: Request, modo: str | None = None, curar: bool = False,
-                            mode: str | None = None, curate: bool = False, cred=Depends(credencial)):
+                            mode: str | None = None, curate: bool = False, origin: str | None = None,
+                            cred=Depends(credencial)):
     exigir_tag(cred, tag, "escrever")
     if mode is not None:  # nomes em inglês (vs sync): mode=literal|documented, curate=true
         modo = {"literal": "literal", "documented": "documentado"}.get(mode, mode)
     curar = curar or curate
     # Token de conexão: quem envia é o dono do workspace (vs sync); outro token, pelo nome dele.
     por = cred["dono"] if cred.get("workspace") and cred.get("dono") else cred["nome"]
-    r = await envio.receber(request, tag, por, modo)
+    r = await envio.receber(request, tag, por, modo, origin)
     if curar:  # vs sync --curate: pede a curadoria do Vault-I (nunca automática)
         from vault_system import vault_i
         with credenciais.conectar() as db:

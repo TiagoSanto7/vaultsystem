@@ -59,7 +59,9 @@ The **hub** is your workspace server: it stores the vaults, shows the notes and 
 | `vs init vault=<name> [mode=literal\|documented]` | Links this folder to a vault: writes `.vs`, `AGENTS.md` and `VS.lock`. |
 | `vs init template=<type> [mode=literal\|documented]` | Links this folder to the `template-<type>` vault; each subfolder is a template. |
 | `vs sync [--dry-run] [--curate]` | Packages this folder and sends it to the vault in `.vs`. |
-| `vs sync vault=<name>` / `vs sync template=<type>` | Sends this folder to that vault or template vault instead. |
+| `vs init` | Prepares this folder (`AGENTS.md`, `.vs`) without linking it to any vault. |
+| `vs sync vault=<name>` | Adds this folder to that vault; content sent by other folders stays. |
+| `vs sync template=<type> [name=<template>]` | Adds this folder to `template-<type>` as one template (default name: the folder's name). |
 | `vs sync <vault> <file.zip> [mode=literal\|documented]` | Sends a ready-made ZIP to a vault. |
 | `vs templates [type]` | Lists the templates on the hub. |
 | `vs add template <type:name> [dir=<folder>] [--dry-run] [--force]` | Applies a template to the current folder. |
