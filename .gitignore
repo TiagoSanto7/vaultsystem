@@ -5,11 +5,12 @@ keys/
 *.pem
 !api/certs/ad-ca.pem
 local/dados/
-exemplos/**/.vs
-exemplos/**/VS.lock
-exemplos/**/.vaultsystem/
 
 # Ferramentas locais do editor/agente (não fazem parte do produto)
 .agents/
 .claude/
 skills-lock.json
+
+# Conteúdo próprio (templates e vaults do Tiago): fica só na máquina e no hub, nunca no repositório.
+exemplos/
+conteudos-inicais/

@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" role="img" aria-label="Vault System">
-  <circle cx="18" cy="20" r="14" fill="none" stroke="#82baff"/>
-  <path d="M11 8l7 12-7 12m7-12 17-7m-17 7 17 7" stroke="#0758ed" fill="none"/>
-  <g fill="#0758ed">
-    <circle cx="11" cy="8" r="2.4"/><circle cx="11" cy="32" r="2.4"/>
-    <circle cx="35" cy="13" r="2.4"/><circle cx="35" cy="27" r="2.4"/>
-    <circle cx="18" cy="20" r="4"/>
-  </g>
-</svg>
