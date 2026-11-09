@@ -442,5 +442,5 @@ def test_comandos_antigos_avisam_o_nome_novo(tmp_path):
         r = _vs(list(args), tmp_path, env)
         assert r.returncode == 1 and novo in r.stderr, (args, r.stderr)
     ajuda = _vs(["help"], tmp_path, env).stdout
-    for cmd in ("vs list templates", "vs connect repo", "vs init template=<type>", "vs sync vault=<name>", "file=<zip>"):
+    for cmd in ("vs list templates", "vs connect repo", "vs init template=<tipo>", "vs sync vault=<nome>", "file=<zip>"):
         assert cmd in ajuda
