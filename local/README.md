@@ -38,7 +38,7 @@ design system do Vault System, com 9 notas). Nessa pasta, rode
 A chave de API (Claude ou OpenAI) é configurada no painel, em Configurações. Sem
 ela não há curadoria no hub, e isso não é erro: o vault fica com os arquivos e as
 notas do agente. A curadoria nunca roda sozinha: só pelo botão "Curar com
-Vault-I" de um vault ou com `vs sync --curate`.
+Vault-I" de um vault. (O `vs sync --curate` é outra coisa: cura na sua máquina, com o seu agente.)
 
 ## Parar e limpar
 

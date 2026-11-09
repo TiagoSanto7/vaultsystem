@@ -6,7 +6,7 @@ import { dataHora } from "../formato";
 import { Icone } from "../icones";
 
 // Configurações do hub. Vault-I (Vault Intelligence): a chave de API da curadoria interna.
-// A curadoria nunca é automática: só roda quando alguém pede no vault ou com vs sync --curate.
+// A curadoria nunca é automática: só roda quando alguém pede no botão do vault.
 
 interface VaultI {
   configurada: boolean;
@@ -83,7 +83,7 @@ function VaultIPainel() {
         <div className="banner" role="note">
           <Icone nome="lock" />
           <span>A curadoria <b>nunca é automática</b>. Ela só roda quando você pede: no botão <b>Curar com Vault-I</b> de um
-            vault ou com <code>vs sync --curate</code>. Sem chave, nada muda: o vault fica com os arquivos e as notas do agente.</span>
+            vault. (O <code>vs sync --curate</code> cura na máquina de quem envia, com o agente dela.) Sem chave, nada muda: o vault fica com os arquivos e as notas do agente.</span>
         </div>
         {dados.configurada && (
           <ul className="kv">

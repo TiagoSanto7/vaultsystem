@@ -54,7 +54,7 @@ vs sync
 - `vs sync --dry-run`: mostra o que iria, sem enviar.
 - `vs list templates` e `vs add template <type:name>`: listam e aplicam
   templates do hub. Use `--dry-run` antes; nunca use `--force` sem pedido.
-- Não peça curadoria (`--curate`) sem pedido: ela usa a chave de IA do hub.
+- Não use `--curate`: ele abre um agente para curar a pasta, e você já é o agente.
 <!-- vs:fim -->
 
 ## Este projeto
