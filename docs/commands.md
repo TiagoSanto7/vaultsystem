@@ -25,7 +25,8 @@ Qualquer mudança em um comando começa aqui.
 | Comando | O que faz |
 | --- | --- |
 | `vs login [url=<hub>]` | Conecta a um hub com o **token de conexão** da aba Tokens do painel. O token é pedido sem aparecer na tela e fica guardado só para o seu usuário (`~/.config/vaultsystem/config.json`). |
-| `vs logout` | Apaga o token guardado. |
+| `vs logout [agent=<agente>]` | Apaga o token do hub (ou, com `agent=`, a credencial do agente). |
+| `vs login agent=claude` | Configura o agente do `vs sync --curate`: pede o token do `claude setup-token` (Enter vazio usa o login que o Claude Code já tem na máquina). |
 | `vs whoami` | Mostra o hub, o token e o dono do workspace. |
 
 ### Pasta do projeto
@@ -49,7 +50,8 @@ Parâmetros e flags do `init` e do `sync`:
 | `name=<template>` | `sync template=` | O nome do template dentro do vault de template: a parte depois dos dois-pontos em `vs add template <tipo>:<nome>`. |
 | `file=<zip>` | `sync vault=` / `sync template=` | Envia um ZIP pronto no lugar da pasta. Substitui o envio principal do vault; num `template=`, o ZIP já vem com uma pasta por template. |
 | `--dry-run` | `init`, `sync`, `add template` | Só mostra o que aconteceria. As notas aparecem marcadas com `*`. |
-| `--curate` | `sync` | Pede a curadoria do Vault-I depois do envio. Precisa de uma chave de API ou de um token do `claude setup-token` no hub. |
+| `--curate` | `sync` | Antes de enviar, abre o agente da máquina, que cura a pasta seguindo o `AGENTS.md` (escreve e atualiza as notas em `docs/vs/`). Depois o `vs` confere as notas e envia. Com `--dry-run`, só avisa. |
+| `agent=<agente>` | `sync --curate` | Qual agente usar. Padrão: o do `vs login agent=`. Hoje: `claude`. Em seguida: `codex`, `gemini`, `cursor` e `opencode`. |
 | `--force` | `init`, `add template` | Sobrescreve arquivos que já existem. |
 
 Como pastas e vaults se relacionam:
@@ -79,6 +81,14 @@ Como pastas e vaults se relacionam:
 | `vs update` | Baixa a CLI mais nova do hub. |
 | `vs help` | Lista todos os comandos. |
 | `vaultsystem` | Abre o painel de boas-vindas. |
+
+## Curadoria
+
+| Onde | Como | Quem escreve as notas |
+| --- | --- | --- |
+| Na sua máquina | `vs sync --curate` | O agente local (hoje, o Claude Code), com a sua conta, seguindo o `AGENTS.md`. Só lê e edita arquivos da pasta; não roda comandos. |
+| No hub | Botão **Curar com Vault-I** no vault | O Vault-I, com a chave de API ou o token configurado em Configurações. |
+| À mão ou pelo seu agente | Escrevendo em `docs/vs/` | Você ou o agente da sua sessão, seguindo o `AGENTS.md`. |
 
 ## Notas escritas pelo agente
 

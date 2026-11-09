@@ -13,7 +13,8 @@ Commands:
 
   Conexão
     vs login [url=<hub>]                    conecta a um hub com o token de conexão (pedido sem aparecer na tela)
-    vs logout                               apaga o token guardado
+    vs login agent=claude                   configura o agente do vs sync --curate (token do claude setup-token)
+    vs logout [agent=<agente>]              apaga o token do hub (ou a credencial do agente)
     vs whoami                               mostra o hub, o token e o dono do workspace
 
   Pasta do projeto
@@ -28,7 +29,8 @@ Commands:
         name=<template>                     o nome do template (padrão: o nome da pasta)
         file=<zip>                          envia um ZIP pronto no lugar da pasta
         --dry-run                           só lista o que iria
-        --curate                            pede a curadoria do Vault-I (precisa de chave ou token no hub)
+        --curate                            antes de enviar, o agente da máquina cura a pasta seguindo o AGENTS.md
+        agent=<agente>                      o agente do --curate (padrão: o do vs login agent=); hoje: claude
 
   Templates
     vs list templates [type=<tipo>]         lista os templates do hub
@@ -56,6 +58,7 @@ import json
 import os
 import posixpath
 import re
+import shutil
 import stat
 import subprocess
 import sys
@@ -124,7 +127,7 @@ vs sync
 - `vs sync --dry-run`: mostra o que iria, sem enviar.
 - `vs list templates` e `vs add template <type:name>`: listam e aplicam
   templates do hub. Use `--dry-run` antes; nunca use `--force` sem pedido.
-- Não peça curadoria (`--curate`) sem pedido: ela usa a chave de IA do hub.
+- Não use `--curate`: ele abre um agente para curar a pasta, e você já é o agente.
 <!-- vs:fim -->
 
 ## Este projeto
@@ -237,6 +240,10 @@ def saida(obj, como_json, texto):
 # --- comandos -----------------------------------------------------------------------
 
 def cmd_login(pos, params, flags):
+    if params.get("agent"):
+        if set(params) - {"agent"}:
+            raise Erro(f"uso: {cli()} login agent=<claude>")
+        return _login_agente(params["agent"], flags)
     c = ler_config()
     url = (params.get("url") or url_base(c)).rstrip("/")
     if not url:
@@ -269,7 +276,142 @@ def cmd_whoami(pos, params, flags):
     saida({**eu, "url": url_base()}, "json" in flags, texto)
 
 
+# --- agentes locais (vs sync --curate) -----------------------------------------------------------
+#
+# Cada agente é um adaptador: como abrir sem conversa, que credencial usa e que permissões libera.
+# O agente roda na pasta do projeto, só com ferramentas de ler e editar arquivos, e segue a seção do
+# AGENTS.md para escrever as notas. Depois o vs confere as notas e envia.
+
+PEDIDO_CURADORIA = """Você é o curador local do Vault System para esta pasta.
+Siga a seção "Protocolo Vault System" do AGENTS.md desta pasta (entre <!-- vs:inicio --> e <!-- vs:fim -->).
+
+Tarefa:
+1. Leia os arquivos do projeto (respeite o .gitignore; ignore node_modules, builds e mídia).
+2. Crie ou atualize as notas em docs/vs/, uma por assunto, com o cabeçalho do protocolo (vs:, titulo, origens).
+3. Apague as notas que deixaram de valer e não mexa em mais nada fora de docs/vs/.
+4. Nunca escreva credenciais, tokens, senhas ou dados pessoais.
+5. Não rode comandos e não envie nada: quem envia é o vs, depois de você.
+
+Ao terminar, responda só com uma linha: RESUMO: <notas criadas>, <notas atualizadas>, <notas apagadas>."""
+
+
+class AgenteClaude:
+    nome = "claude"
+    rotulo = "Claude Code"
+    binario = "claude"
+    instalar = "npm install -g @anthropic-ai/claude-code"
+    credencial = "token do claude setup-token (sk-ant-oat...)"
+
+    def valida_token(self, token):
+        if not token.startswith("sk-ant-oat"):
+            raise Erro("esse não parece um token do claude setup-token (começa com sk-ant-oat)")
+
+    def comando(self, exe):
+        return [exe, "-p", "--output-format", "json",
+                "--allowedTools", "Read,Glob,Grep,Write,Edit,MultiEdit",
+                "--disallowedTools", "Bash,WebFetch,WebSearch,Task,NotebookEdit",
+                "--permission-mode", "acceptEdits"]
+
+    def ambiente(self, token):
+        env = dict(os.environ)
+        if token:
+            env["CLAUDE_CODE_OAUTH_TOKEN"] = token
+            env.pop("ANTHROPIC_API_KEY", None)  # a chave de API teria precedência sobre o token
+        return env
+
+    def resultado(self, saida):
+        """(ok, texto) a partir da saída de claude -p --output-format json."""
+        try:
+            d = json.loads(saida)
+        except ValueError:
+            return False, (saida or "").strip()[-300:] or "sem saída"
+        texto = str(d.get("result") or "")
+        if d.get("is_error"):
+            if any(t in texto.lower() for t in ("oauth", "401", "invalid api key", "authentication", "/login")):
+                return False, "login do Claude recusado: rode vs login agent=claude com um token novo"
+            return False, texto[:300] or "erro do Claude Code"
+        return True, texto
+
+
+AGENTES = {a.nome: a for a in (AgenteClaude(),)}
+EM_BREVE = {"codex": "Codex CLI", "gemini": "Gemini CLI", "cursor": "Cursor CLI", "opencode": "opencode"}
+
+
+def _agente(nome):
+    if nome in AGENTES:
+        return AGENTES[nome]
+    if nome in EM_BREVE:
+        raise Erro(f"o agente {nome} ({EM_BREVE[nome]}) ainda não é suportado; por enquanto: {', '.join(AGENTES)}")
+    raise Erro(f"agente desconhecido: {nome} (suportados: {', '.join(AGENTES)})")
+
+
+def _login_agente(nome, flags):
+    ag = _agente(nome)
+    token = os.environ.get("VS_AGENT_TOKEN") or getpass.getpass(
+        f"{ag.credencial} (Enter vazio usa o login que o {ag.rotulo} já tem nesta máquina): ").strip()
+    if token:
+        ag.valida_token(token)
+    c = ler_config()
+    c.setdefault("agents", {})[ag.nome] = {"token": token or None}
+    c["agent"] = ag.nome
+    gravar_config(c)
+    instalado = shutil.which(ag.binario) is not None
+    saida({"agent": ag.nome, "token": bool(token), "installed": instalado}, "json" in flags,
+          f"Agente {ag.rotulo} configurado para o vs sync --curate"
+          + (" (com token)." if token else " (usando o login que ele já tem).")
+          + ("" if instalado else f"\nAviso: o {ag.rotulo} não está instalado. Instale com: {ag.instalar}"))
+    return 0
+
+
+def _curar_local(raiz, nome, flags):
+    """Roda o agente na pasta para escrever as notas. Devolve um resumo."""
+    if not os.path.isfile(os.path.join(raiz, "AGENTS.md")):
+        raise Erro(f"esta pasta não tem AGENTS.md: rode {cli()} init antes de curar")
+    ag = _agente(nome)
+    exe = shutil.which(ag.binario)
+    if not exe:
+        raise Erro(f"o {ag.rotulo} não está instalado. Instale com: {ag.instalar}")
+    token = ((ler_config().get("agents") or {}).get(ag.nome) or {}).get("token")
+    if "json" not in flags:
+        print(f"Curando com o {ag.rotulo}... (pode levar alguns minutos)", file=sys.stderr)
+    antes = _fotografia_notas(raiz)
+    try:
+        r = subprocess.run(ag.comando(exe), input=PEDIDO_CURADORIA, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", cwd=raiz, env=ag.ambiente(token),
+                           timeout=int(os.environ.get("VS_CURATE_TIMEOUT", "1800")))
+    except subprocess.TimeoutExpired:
+        raise Erro(f"o {ag.rotulo} passou do tempo máximo; nada foi enviado") from None
+    ok, texto = ag.resultado(r.stdout or r.stderr)
+    if not ok:
+        raise Erro(f"a curadoria com o {ag.rotulo} falhou: {texto}; nada foi enviado")
+    depois = _fotografia_notas(raiz)
+    return {"agent": ag.nome, "resumo": texto.strip()[-300:],
+            "criadas": sorted(set(depois) - set(antes)),
+            "atualizadas": sorted(k for k in depois if k in antes and antes[k] != depois[k]),
+            "apagadas": sorted(set(antes) - set(depois))}
+
+
+def _fotografia_notas(raiz):
+    """{caminho: conteúdo} das notas do agente (cabeçalho vs:) na pasta."""
+    saida_ = {}
+    for n in _arquivos_do_projeto(raiz):
+        c = os.path.join(raiz, *n.split("/"))
+        if n.lower().endswith(".md") and _e_nota(c):
+            with open(c, "rb") as f:
+                saida_[n] = f.read()
+    return saida_
+
+
 def cmd_logout(pos, params, flags):
+    if params.get("agent"):
+        c = ler_config()
+        nome = params["agent"]
+        (c.get("agents") or {}).pop(nome, None)
+        if c.get("agent") == nome:
+            c.pop("agent", None)
+        gravar_config(c)
+        saida({"ok": True, "agent": nome}, "json" in flags, f"Credencial do agente {nome} apagada.")
+        return 0
     c = ler_config()
     c.pop("token", None)
     if os.path.exists(arquivo_config()):
@@ -527,7 +669,7 @@ def _texto_curadoria(r):
 
 
 USO_SYNC = ("uso: vs sync [vault=<name> | template=<type>] [name=<template>] [file=<zip>] "
-            "[mode=literal|documented] [dir=<folder>] [--dry-run] [--curate] [--json]")
+            "[mode=literal|documented] [agent=<agente>] [dir=<folder>] [--dry-run] [--curate] [--json]")
 
 
 def cmd_sync(pos, params, flags):
@@ -551,8 +693,8 @@ def cmd_sync(pos, params, flags):
 
 def _sync_zip(alvo, params, flags):
     """vs sync vault=<name> file=<zip>: envia um ZIP pronto (cria o vault no primeiro envio)."""
-    if not alvo or set(params) - {"file", "mode"} or flags - {"json", "curate"}:
-        raise Erro(f"uso: {cli()} sync vault=<name> file=<zip> [mode=literal|documented] [--curate] [--json]")
+    if not alvo or set(params) - {"file", "mode"} or flags - {"json"}:
+        raise Erro(f"uso: {cli()} sync vault=<nome> file=<zip> [mode=literal|documented] [--json]")
     modo = params.get("mode")
     if modo not in (None, *MODOS):
         raise Erro("modo inválido: use mode=literal ou mode=documented")
@@ -561,14 +703,14 @@ def _sync_zip(alvo, params, flags):
     if len(pacote) > LIMITE_PACOTE or not zipfile.is_zipfile(io.BytesIO(pacote)):
         raise Erro("informe um ZIP válido de até 10 MB")
     modo = modo or ("literal" if alvo[0] == "template" else "documented")
-    r = _enviar(alvo[1], pacote, MODO_NO_HUB[modo], "curate" in flags)
+    r = _enviar(alvo[1], pacote, MODO_NO_HUB[modo])
     saida(r, "json" in flags, f"Enviado para {alvo[1]}: {r['arquivos']} arquivo(s) · revisão {r['commit'][:12]}."
                               f"{_texto_curadoria(r)}")
     return 0
 
 
 def _sync_projeto(params, flags, alvo=None):
-    if set(params) - {"dir", "mode", "name"} or flags - {"json", "dry-run", "curate"} or (params.get("mode") and not alvo):
+    if set(params) - {"dir", "mode", "name", "agent"} or flags - {"json", "dry-run", "curate"} or (params.get("mode") and not alvo):
         raise Erro(USO_SYNC)
     if params.get("mode") and params["mode"] not in MODOS:
         raise Erro("modo inválido: use mode=literal ou mode=documented")
@@ -599,6 +741,16 @@ def _sync_projeto(params, flags, alvo=None):
     if vs.get("hub") and hub and vs["hub"].rstrip("/") != hub:
         raise Erro(f"esta pasta está ligada ao hub {vs['hub']}, e o login atual é de {hub}: "
                    f"rode {cli()} login url={vs['hub']}")
+    curadoria = None
+    if "curate" in flags:
+        agente = params.get("agent") or ler_config().get("agent") or "claude"
+        if "dry-run" in flags:
+            print(f"--curate: o agente {agente} curaria a pasta antes do envio (nada roda no --dry-run).",
+                  file=sys.stderr)
+        else:
+            curadoria = _curar_local(raiz, agente, flags)
+    elif params.get("agent"):
+        raise Erro("agent= só vale com --curate")
     nomes = _arquivos_do_projeto(raiz)
     if not nomes:
         raise Erro("nada para enviar nesta pasta")
@@ -612,12 +764,17 @@ def _sync_projeto(params, flags, alvo=None):
               + (f"\n* nota do agente ({len(notas)}): entra curada no modo documented" if notas else "")
               + "\nNada foi enviado (--dry-run).")
         return 0
-    r = _enviar(tag, _empacotar(raiz, nomes, prefixo), MODO_NO_HUB[modo], "curate" in flags, origem)
+    r = _enviar(tag, _empacotar(raiz, nomes, prefixo), MODO_NO_HUB[modo], False, origem)
+    if curadoria:
+        r["curadoria"] = curadoria
     r.update({"vault": tag, "mode": modo, "notas_do_agente": len(notas)})
     saida(r, "json" in flags,
           f"Enviado para {tag} ({modo}): {r['arquivos']} arquivo(s) · revisão {r['commit'][:12]}"
           + (f" · {len(notas)} nota(s) do agente" if notas and modo == "documented" else "")
-          + f".\nO hub processa em instantes: {hub}/sistemas/{tag}" + _texto_curadoria(r))
+          + f".\nO hub processa em instantes: {hub}/sistemas/{tag}"
+          + (f"\nCuradoria local ({curadoria['agent']}): {len(curadoria['criadas'])} nota(s) nova(s), "
+             f"{len(curadoria['atualizadas'])} atualizada(s), {len(curadoria['apagadas'])} apagada(s)."
+             if curadoria else ""))
     return 0
 
 
