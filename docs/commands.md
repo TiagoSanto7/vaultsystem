@@ -1,102 +1,102 @@
-# VS CLI command reference
+# Referência de comandos da VS CLI
 
-This is the single source of truth for the `vs` command line. The README, the hub's
-VS CLI tab, `vs help` and the `AGENTS.md` section written by `vs init` all follow it.
-A change to a command starts here.
+Esta é a fonte única da linha de comando `vs`. O README, a aba VS CLI do hub, o
+`vs help` e a seção do `AGENTS.md` escrita pelo `vs init` seguem este documento.
+Qualquer mudança em um comando começa aqui.
 
-## Conventions
+## Convenções
 
-| Rule | Example |
+| Regra | Exemplo |
 | --- | --- |
-| One pattern: `vs <verb> [object] [key=value ...] [--flag ...]` | `vs add template design:default dir=ui --dry-run` |
-| Everything typed is English: verbs, objects, keys, values and flags | `mode=documented`, never `modo=documentado` |
-| Verbs come first; the object, when there is one, is a single word | `vs list templates`, `vs connect repo` |
-| Choices are `key=value`, never positional | `vs init vault=my-project`, not `vs init vault my-project` |
-| Flags are on/off switches and never take a value | `--dry-run`, `--curate`, `--force`, `--json` |
-| Names are lowercase letters, digits and hyphens | `my-project`, `design`, `motion-vs` |
-| A template is addressed as `<type>:<name>` | `design:motion-vs` is the `motion-vs` folder of the `template-design` vault |
-| Every command accepts `--json` for scripts and agents | `vs whoami --json` |
-| `dir=<folder>` runs a command on another folder | `vs sync dir=../site` |
+| Um padrão só: `vs <verbo> [objeto] [chave=valor ...] [--flag ...]` | `vs add template design:default dir=ui --dry-run` |
+| Tudo o que se digita é em inglês: verbos, objetos, chaves, valores e flags. As explicações são em português. | `mode=documented`, nunca `modo=documentado` |
+| O verbo vem primeiro; o objeto, quando existe, é uma palavra só | `vs list templates`, `vs connect repo` |
+| Escolhas são sempre `chave=valor`, nunca posicionais | `vs init vault=meu-projeto`, não `vs init vault meu-projeto` |
+| Flags ligam ou desligam algo e nunca recebem valor | `--dry-run`, `--curate`, `--force`, `--json` |
+| Nomes usam letras minúsculas, números e hífen | `meu-projeto`, `design`, `motion-vs` |
+| Um template é chamado de `<tipo>:<nome>` | `design:motion-vs` é a pasta `motion-vs` do vault `template-design` |
+| Todo comando aceita `--json`, para scripts e agentes | `vs whoami --json` |
+| `dir=<pasta>` roda o comando em outra pasta | `vs sync dir=../site` |
 
-## Commands
+## Comandos
 
-### Connection
+### Conexão
 
-| Command | What it does |
+| Comando | O que faz |
 | --- | --- |
-| `vs login [url=<hub>]` | Connects to a hub with a **connection token** from the panel's Tokens tab. The token is asked without echo and saved for your user only (`~/.config/vaultsystem/config.json`). |
-| `vs logout` | Removes the saved token. |
-| `vs whoami` | Shows the hub, the token and the workspace owner. |
+| `vs login [url=<hub>]` | Conecta a um hub com o **token de conexão** da aba Tokens do painel. O token é pedido sem aparecer na tela e fica guardado só para o seu usuário (`~/.config/vaultsystem/config.json`). |
+| `vs logout` | Apaga o token guardado. |
+| `vs whoami` | Mostra o hub, o token e o dono do workspace. |
 
-### Project folder
+### Pasta do projeto
 
-| Command | What it does |
+| Comando | O que faz |
 | --- | --- |
-| `vs init` | Prepares this folder: writes `AGENTS.md` (managed section), `.vs` and `VS.lock`. It does **not** link the folder to a vault. |
-| `vs init vault=<name>` | Same, and links the folder to the vault `<name>`. Default `mode=documented`. |
-| `vs init template=<type>` | Same, and links the folder to the vault `template-<type>`. Each subfolder is one template (`<type>:<folder>`). Default `mode=literal`. |
-| `vs sync` | Sends this folder to the vault linked in `.vs`. The first sync creates the vault. |
-| `vs sync vault=<name>` | Adds this folder to the vault `<name>`. |
-| `vs sync template=<type>` | Adds this folder to `template-<type>` as one template, named after the folder (`name=<template>` sets another name). |
+| `vs init` | Prepara a pasta: grava o `AGENTS.md` (seção gerenciada), o `.vs` e o `VS.lock`. **Não** liga a pasta a um vault. |
+| `vs init vault=<nome>` | Faz o mesmo e liga a pasta ao vault `<nome>`. Padrão `mode=documented`. |
+| `vs init template=<tipo>` | Faz o mesmo e liga a pasta ao vault `template-<tipo>`. Cada subpasta é um template (`<tipo>:<pasta>`). Padrão `mode=literal`. |
+| `vs sync` | Envia a pasta para o vault ligado no `.vs`. O primeiro envio cria o vault. |
+| `vs sync vault=<nome>` | Soma a pasta atual ao vault `<nome>`. Se o vault não existe, ele é criado. Não precisa de `vs init`. |
+| `vs sync template=<tipo>` | Soma a pasta atual a `template-<tipo>` como um template, com o nome da pasta (`name=<template>` dá outro nome). |
 
-Parameters and flags of `init` and `sync`:
+Parâmetros e flags do `init` e do `sync`:
 
-| Parameter or flag | Used with | Meaning |
+| Parâmetro ou flag | Vale para | O que faz |
 | --- | --- | --- |
-| `mode=literal` | `init`, `sync` | Store the files as they are. |
-| `mode=documented` | `init`, `sync` | Store the files and import the agent's notes as curated. |
-| `package=<name>` | `init` | Apply the init package `init:<name>` from the hub instead of the local one. |
-| `name=<template>` | `sync template=` | The template's name inside the template vault. |
-| `file=<zip>` | `sync vault=` / `sync template=` | Send a ready-made ZIP instead of this folder. |
-| `--dry-run` | `init`, `sync`, `add template` | Only show what would happen. Notes are marked with `*`. |
-| `--curate` | `sync` | Ask Vault-I to curate after the sync. Needs an API key or a `claude setup-token` token on the hub. |
-| `--force` | `init`, `add template` | Overwrite files that already exist. |
+| `mode=literal` | `init`, `sync` | Guarda os arquivos como estão. |
+| `mode=documented` | `init`, `sync` | Guarda os arquivos e importa as notas do agente como curadas. |
+| `package=<nome>` | `init` | Aplica o pacote de inicialização `init:<nome>` do hub no lugar do local. |
+| `name=<template>` | `sync template=` | O nome do template dentro do vault de template: a parte depois dos dois-pontos em `vs add template <tipo>:<nome>`. |
+| `file=<zip>` | `sync vault=` / `sync template=` | Envia um ZIP pronto no lugar da pasta. Substitui o envio principal do vault; num `template=`, o ZIP já vem com uma pasta por template. |
+| `--dry-run` | `init`, `sync`, `add template` | Só mostra o que aconteceria. As notas aparecem marcadas com `*`. |
+| `--curate` | `sync` | Pede a curadoria do Vault-I depois do envio. Precisa de uma chave de API ou de um token do `claude setup-token` no hub. |
+| `--force` | `init`, `add template` | Sobrescreve arquivos que já existem. |
 
-How folders and vaults relate:
+Como pastas e vaults se relacionam:
 
-- Each folder that syncs is its own **origin** of the vault. A sync only replaces what that folder sent before; what other folders sent stays.
-- A vault keeps the mode it was created with. A folder that adds to it follows that mode.
-- `vs init` never runs twice on the same folder unless you want to change its link.
+- Cada pasta que envia é uma **origem** do vault. Um envio só troca o que aquela pasta mandou antes; o que outras pastas mandaram continua.
+- Um vault mantém o modo com que foi criado. Uma pasta que soma conteúdo a ele segue esse modo.
+- Só rode `vs init` de novo numa pasta se quiser mudar o vínculo dela.
 
 ### Templates
 
-| Command | What it does |
+| Comando | O que faz |
 | --- | --- |
-| `vs list templates [type=<type>]` | Lists the templates on the hub, of one type or all. |
-| `vs add template <type:name>` | Applies a template to this folder (`dir=<folder>` for another one). Never overwrites without `--force`. Records the revision in `.vaultsystem/templates.json`. |
+| `vs list templates [type=<tipo>]` | Lista os templates do hub, de um tipo ou todos. |
+| `vs add template <tipo:nome>` | Aplica um template na pasta (`dir=<pasta>` para outra). Nunca sobrescreve sem `--force`. Registra a revisão em `.vaultsystem/templates.json`. |
 
-### Git (optional)
+### Git (opcional)
 
-| Command | What it does |
+| Comando | O que faz |
 | --- | --- |
-| `vs connect repo <ssh-url>` | Initializes Git in this folder and adds the `vault` remote. |
+| `vs connect repo <url-ssh>` | Inicia o Git na pasta e adiciona o remoto `vault`. |
 
 ### CLI
 
-| Command | What it does |
+| Comando | O que faz |
 | --- | --- |
-| `vs version` | Shows this version and the hub's. |
-| `vs update` | Downloads the latest CLI from the hub. |
-| `vs help` | Lists every command. |
-| `vaultsystem` | Opens the welcome panel. |
+| `vs version` | Mostra esta versão e a do hub. |
+| `vs update` | Baixa a CLI mais nova do hub. |
+| `vs help` | Lista todos os comandos. |
+| `vaultsystem` | Abre o painel de boas-vindas. |
 
-## Notes written by the agent
+## Notas escritas pelo agente
 
-`vs init` writes a managed section in `AGENTS.md` (between `<!-- vs:inicio -->` and
-`<!-- vs:fim -->`) that tells the project's agent how to write notes and which
-commands it may run. Note types, set in the `vs:` header field: `elemento`,
-`regra`, `orientacao`, `decisao`, `modulo`, `integracao`, `api`, `dado` and `nota`.
+O `vs init` grava no `AGENTS.md` uma seção gerenciada (entre `<!-- vs:inicio -->` e
+`<!-- vs:fim -->`) que diz ao agente do projeto como escrever as notas e quais
+comandos ele pode rodar. Tipos de nota, no campo `vs:` do cabeçalho: `elemento`,
+`regra`, `orientacao`, `decisao`, `modulo`, `integracao`, `api`, `dado` e `nota`.
 
-## Renamed commands
+## Comandos renomeados
 
-The old forms stop with a message that names the new one.
+As formas antigas param com uma mensagem que mostra a nova.
 
-| Old | New |
+| Antes | Agora |
 | --- | --- |
-| `vs templates [type]` | `vs list templates [type=<type>]` |
+| `vs templates [tipo]` | `vs list templates [type=<tipo>]` |
 | `vs repo connect <url>` | `vs connect repo <url>` |
-| `vs init <package>` | `vs init package=<package>` |
-| `vs init vault <name>` | `vs init vault=<name>` |
-| `vs sync <vault> <file.zip>` | `vs sync vault=<vault> file=<file.zip>` |
+| `vs init <pacote>` | `vs init package=<pacote>` |
+| `vs init vault <nome>` | `vs init vault=<nome>` |
+| `vs sync <vault> <arquivo.zip>` | `vs sync vault=<vault> file=<arquivo.zip>` |
 | `modo=literal\|documentado` | `mode=literal\|documented` |
 | `vs versao`, `vs ajuda` | `vs version`, `vs help` |
