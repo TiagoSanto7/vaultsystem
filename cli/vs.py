@@ -1,54 +1,53 @@
 #!/usr/bin/env python3
-"""vs: the Vault System command line.
+"""vs: a linha de comando do Vault System.
 
-A single file using only the Python standard library (3.8 or newer). Install:
+Um arquivo só, com a biblioteca padrão do Python (3.8 ou mais novo). Instalar:
 
     Windows:              irm <hub>/v1/cli/install.ps1 | iex
-    Linux, macOS, WSL:    curl -fsSL <hub>/v1/cli/install.sh | sh
+    Linux, macOS e WSL:   curl -fsSL <hub>/v1/cli/install.sh | sh
 
-Every command follows one pattern: vs <verb> [object] [key=value ...] [--flag ...].
-Full reference: docs/commands.md in the Vault System repository.
+Os comandos são em inglês e seguem um padrão só: vs <verbo> [objeto] [chave=valor ...] [--flag ...].
+Referência completa: docs/commands.md no repositório do Vault System.
 
 Commands:
 
-  Connection
-    vs login [url=<hub>]                    connect to a hub with a connection token (asked without echo)
-    vs logout                               remove the saved token
-    vs whoami                               show the hub, the token and the workspace owner
+  Conexão
+    vs login [url=<hub>]                    conecta a um hub com o token de conexão (pedido sem aparecer na tela)
+    vs logout                               apaga o token guardado
+    vs whoami                               mostra o hub, o token e o dono do workspace
 
-  Project folder
-    vs init                                 prepare this folder (AGENTS.md, .vs, VS.lock), not linked to a vault
-    vs init vault=<name>                    ...and link it to a vault (default mode=documented)
-    vs init template=<type>                 ...and link it to template-<type>; each subfolder is a template
-        mode=literal|documented             literal stores files only; documented also imports the agent's notes
-        package=<name>                      apply the init package init:<name> from the hub
-    vs sync                                 send this folder to the vault linked in .vs
-    vs sync vault=<name>                    add this folder to a vault (what other folders sent stays)
-    vs sync template=<type>                 add this folder to template-<type> as one template
-        name=<template>                     the template's name (default: this folder's name)
-        file=<zip>                          send a ready-made ZIP instead of this folder
-        --dry-run                           only list what would be sent
-        --curate                            ask Vault-I to curate (needs an API key or token on the hub)
+  Pasta do projeto
+    vs init                                 prepara a pasta (AGENTS.md, .vs, VS.lock) sem ligar a um vault
+    vs init vault=<nome>                    ...e liga a pasta a um vault (padrão mode=documented)
+    vs init template=<tipo>                 ...e liga a template-<tipo>; cada subpasta é um template
+        mode=literal|documented             literal só guarda os arquivos; documented importa também as notas do agente
+        package=<nome>                      aplica o pacote de inicialização init:<nome> do hub
+    vs sync                                 envia a pasta para o vault ligado no .vs
+    vs sync vault=<nome>                    soma a pasta a um vault (o que outras pastas mandaram fica)
+    vs sync template=<tipo>                 soma a pasta a template-<tipo> como um template
+        name=<template>                     o nome do template (padrão: o nome da pasta)
+        file=<zip>                          envia um ZIP pronto no lugar da pasta
+        --dry-run                           só lista o que iria
+        --curate                            pede a curadoria do Vault-I (precisa de chave ou token no hub)
 
   Templates
-    vs list templates [type=<type>]         list the templates on the hub
-    vs add template <type:name>             apply a template to this folder
-        dir=<folder>                        into another folder
-        --dry-run                           only show what would be done
-        --force                             overwrite existing files
+    vs list templates [type=<tipo>]         lista os templates do hub
+    vs add template <tipo:nome>             aplica um template na pasta
+        dir=<pasta>                         em outra pasta
+        --dry-run                           só mostra o que faria
+        --force                             sobrescreve o que já existe
 
-  Git (optional)
-    vs connect repo <ssh-url>               initialize Git here and add the vault remote
+  Git (opcional)
+    vs connect repo <url-ssh>               inicia o Git na pasta e adiciona o remoto vault
 
   CLI
-    vs version                              this version and the hub's
-    vs update                               download the latest CLI from the hub
-    vs help                                 this text
-    vaultsystem                             the welcome panel
+    vs version                              esta versão e a do hub
+    vs update                               baixa a CLI mais nova do hub
+    vs help                                 este texto
+    vaultsystem                             o painel de boas-vindas
 
-Every command accepts --json (output for scripts and agents). Shared parameter:
-dir=<folder> runs the command on another folder. VS_TOKEN and VS_URL in the environment
-take precedence over ~/.config/vaultsystem/config.json.
+Todo comando aceita --json (saída para scripts e agentes). dir=<pasta> roda o comando em outra
+pasta. VS_TOKEN e VS_URL no ambiente têm prioridade sobre ~/.config/vaultsystem/config.json.
 """
 import datetime
 import getpass
@@ -848,7 +847,7 @@ def cmd_welcome(pos, params, flags):
     for i, l in enumerate(LOGO):
         linhas.append(f"{azul}|  {fim}{ciano}{l.ljust(lw)}{fim}{(ciano if i == 0 else cinza)}{info[i].ljust(w)}  {fim}{azul}|{fim}")
     linhas += [azul + borda + fim, "", f"{ciano}  Para começar{fim}"]
-    passos = ["vs login", "vs init vault=<name>", "vs sync", "vs list templates", "vs help"]
+    passos = ["vs login", "vs init vault=<nome>", "vs sync", "vs list templates", "vs help"]
     linhas += [f"    > {p}" for p in passos]
     saida({"versao": VERSAO, "hub": url_base() or None, "sessao": sessao}, "json" in flags, "\n".join(linhas))
     return 0

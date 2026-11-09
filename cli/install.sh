@@ -57,7 +57,7 @@ EOF
 echo
 echo "VS CLI instalada."
 echo "  vs login          conecta ao hub $HUB (cole o token de conexão da aba Tokens)"
-echo "  vs init vault=<name>, then vs sync"
+echo "  vs init vault=<nome>, depois vs sync"
 echo "  vaultsystem       o painel de boas-vindas"
 case ":$PATH:" in
   *":$BIN:"*) ;;
