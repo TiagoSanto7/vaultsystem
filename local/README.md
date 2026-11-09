@@ -28,10 +28,9 @@ http://127.0.0.1:8790.
 5. `vs sync` envia. O primeiro envio cria o vault; as notas entram já curadas.
    `vs sync --dry-run` mostra o que iria e quais arquivos são notas.
 
-Exemplo pronto: `exemplos/template-design` é o template `design:default` (o
-design system do Vault System, com 9 notas). Nessa pasta, rode
-`vs init template=design` e `vs sync`; depois, em outra pasta,
-`vs add template design:default`.
+Para testar com um template, monte uma pasta com uma subpasta por template e rode
+`vs init template=<tipo>` e `vs sync` nela; depois, em outra pasta,
+`vs add template <tipo>:<nome>`.
 
 ## Curadoria interna (Vault-I)
 
