@@ -444,3 +444,45 @@ def test_comandos_antigos_avisam_o_nome_novo(tmp_path):
     ajuda = _vs(["help"], tmp_path, env).stdout
     for cmd in ("vs list templates", "vs connect repo", "vs init template=<tipo>", "vs sync vault=<nome>", "file=<zip>"):
         assert cmd in ajuda
+
+
+STUB_CLAUDE = """#!/bin/sh
+# claude falso: confere o que o vs pediu e escreve uma nota em docs/vs/
+cat > "$PWD/pedido.txt"
+echo "$@" > "$PWD/args.txt"
+echo "${CLAUDE_CODE_OAUTH_TOKEN:-sem-token}" > "$PWD/token.txt"
+mkdir -p docs/vs
+printf -- '---\nvs: regra\ntitulo: Regra\norigens:\n  - app.py\n---\n# Regra\n' > docs/vs/regra.md
+echo '{"type":"result","is_error":false,"result":"RESUMO: 1 criada, 0 atualizadas, 0 apagadas"}'
+"""
+
+
+def test_curate_local_roda_o_agente_na_pasta(tmp_path, monkeypatch):
+    import stat as st
+    bin_ = tmp_path / "bin"
+    bin_.mkdir()
+    stub = bin_ / "claude"
+    stub.write_text(STUB_CLAUDE)
+    stub.chmod(stub.stat().st_mode | st.S_IXUSR)
+    env = {**os.environ, "VS_CLI": "1", "XDG_CONFIG_HOME": str(tmp_path / "cfg"), "VS_URL": "http://127.0.0.1:9",
+           "PYTHONUTF8": "1", "PATH": f"{bin_}{os.pathsep}{os.environ['PATH']}", "VS_TOKEN": "vs_x",
+           "VS_AGENT_TOKEN": "sk-ant-oat01-" + "z" * 30}
+    pasta = tmp_path / "proj"
+    pasta.mkdir()
+    (pasta / "app.py").write_text("x = 1\n")
+    # sem AGENTS.md: pede o init
+    r = _vs(["sync", "vault=proj", "--curate"], pasta, env)
+    assert r.returncode == 1 and "AGENTS.md" in r.stderr
+    assert _vs(["login", "agent=claude"], pasta, env).returncode == 0
+    assert _vs(["login", "agent=codex"], pasta, env).returncode == 1  # ainda não suportado
+    assert _vs(["init", "vault=proj"], pasta, env).returncode == 0
+    # --dry-run não roda o agente
+    assert _vs(["sync", "--curate", "--dry-run"], pasta, env).returncode == 0
+    assert not (pasta / "docs" / "vs" / "regra.md").exists()
+    r = _vs(["sync", "--curate"], pasta, env)  # o envio falha (sem hub), mas a curadoria já rodou
+    assert (pasta / "docs" / "vs" / "regra.md").exists()
+    assert "AGENTS.md" in (pasta / "pedido.txt").read_text()
+    args = (pasta / "args.txt").read_text()
+    assert "-p" in args and "acceptEdits" in args and "Bash" in args  # Bash vai em disallowedTools
+    assert (pasta / "token.txt").read_text().strip().startswith("sk-ant-oat01-")
+    assert "não consegui falar" in r.stderr

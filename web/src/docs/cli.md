@@ -120,20 +120,24 @@ vs add template design:default dir=interface --dry-run
 `add template` nunca sobrescreve sem `--force` e registra a revisão aplicada em
 `.vaultsystem/templates.json`.
 
-## Curadoria no hub (Vault-I)
+## Curadoria
 
-O Vault-I é a curadoria interna do hub, com a chave de API do Claude ou da
-OpenAI configurada em **Configurações** (menu do avatar). Ela **nunca roda
-sozinha**: só quando você pede, pelo botão **Curar com Vault-I** de um vault ou
-no envio:
+**Na sua máquina.** Sem agente na sessão, `vs sync --curate` abre o agente da sua
+máquina, que escreve as notas seguindo o `AGENTS.md` antes do envio. Hoje o agente é
+o Claude Code; configure uma vez:
 
 ```
+vs login agent=claude
 vs sync --curate
 ```
 
-Sem chave, isso não é erro: o envio passa normalmente e o vault fica com os
-arquivos e as notas do agente. As notas do Vault-I levam `curada_por: vault-i` e
-são refeitas a cada pedido; as notas do agente do projeto têm prioridade.
+O `vs login agent=claude` pede o token do `claude setup-token` (Enter vazio usa o
+login que o Claude Code já tem). O agente só lê e edita arquivos da pasta e não roda
+comandos. Codex, Gemini, Cursor e opencode vêm em seguida.
+
+**No hub.** O Vault-I escreve notas com a chave de API ou o token configurado em
+**Configurações**, e só roda pelo botão **Curar com Vault-I** de um vault. Sem chave,
+nada muda.
 
 ## Todos os comandos
 
@@ -157,5 +161,5 @@ vaultsystem                             painel de boas-vindas
 ```
 
 Parâmetros: `mode=literal|documented`, `package=<nome>` (init), `name=<template>` e
-`file=<zip>` (sync), `dir=<pasta>` (todos). Flags: `--dry-run`, `--curate` (sync),
+`file=<zip>` (sync), `dir=<pasta>` (todos). Flags: `--dry-run`, `--curate` (sync, com `agent=`),
 `--force` (init e add template), `--json` (todos).
