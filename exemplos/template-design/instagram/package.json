@@ -1,0 +1,12 @@
+{
+  "name": "vs-posts-instagram",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "render": "node scripts/render.mjs",
+    "render:exemplo": "node scripts/render.mjs exemplo/index.html out"
+  },
+  "devDependencies": {
+    "playwright": "^1.48.0"
+  }
+}

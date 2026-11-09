@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Posts do Vault System (exemplo)</title>
+  <link rel="stylesheet" href="../tokens/marca.css">
+  <link rel="stylesheet" href="../componentes/post.css">
+  <link rel="stylesheet" href="../componentes/elementos.css">
+</head>
+<body>
+<!-- Cada .post com data-nome vira um PNG em out/ (npm run render). Os textos aqui só demonstram o layout. -->
+<main class="prancheta">
+
+  <!-- Feed 4:5: capa com título em bloco e órbita -->
+  <section class="post post--feed post--nevoa" data-nome="exemplo-feed" style="--nevoa-x:72%;--nevoa-y:66%">
+    <p class="sobretitulo">Vault System</p>
+    <h1 class="titulo">Conhecimento<br><span class="bloco">distribuído.</span></h1>
+    <p class="texto">Código, documentos e decisões com <strong>origem</strong>, para pessoas, agentes e ferramentas.</p>
+    <img src="../componentes/orbita.svg" alt="" style="width:600px;align-self:flex-end;margin:8px -30px 0 0">
+    <div class="assinatura empurra"><img src="../assets/simbolo.svg" alt="">Vault System</div>
+  </section>
+
+  <!-- Carrossel 4:5: slide com contador e etapas -->
+  <section class="post post--feed" data-nome="exemplo-carrossel-02">
+    <div class="topo"><span class="contador"><b>02</b> / 03</span><span class="selo">Como funciona</span></div>
+    <h2 class="titulo titulo--menor">Três <span class="destaque">etapas</span></h2>
+    <div class="etapas">
+      <div class="etapa"><b>01</b><span>Reunir<small>Código, documentos e decisões entram na órbita do projeto.</small></span></div>
+      <div class="etapa"><b>02</b><span>Conectar<small>As relações entre as fontes dão contexto a cada informação.</small></span></div>
+      <div class="etapa"><b>03</b><span>Distribuir<small>Pessoas, agentes e ferramentas reaproveitam esse contexto.</small></span></div>
+    </div>
+    <div class="assinatura empurra"><img src="../assets/simbolo.svg" alt="">Vault System<small><span class="arraste">Arraste</span></small></div>
+  </section>
+
+  <!-- Quadrado 1:1: terminal -->
+  <section class="post post--quadrado post--nevoa" data-nome="exemplo-quadrado" style="--nevoa-x:50%;--nevoa-y:58%">
+    <p class="sobretitulo">Na linha de comando</p>
+    <h2 class="titulo titulo--menor titulo--natural">Uma pasta, <span class="destaque">um vault.</span></h2>
+    <div class="terminal" style="margin-top:48px">
+      <div class="terminal__barra"><i></i><i></i><i></i><span>~/projeto</span><em>TERMINAL</em></div>
+      <div class="terminal__corpo"><span class="prompt">$</span> vs sync --dry-run
+<span class="saida">  12 arquivos · 3 notas *</span>
+<span class="prompt">$</span> vs sync
+<span class="ok">✓</span> <span class="saida">vault atualizado</span><span class="cursor"></span></div>
+    </div>
+    <div class="assinatura empurra"><img src="../assets/simbolo.svg" alt="">Vault System<small><span class="selo">Demonstração do fluxo proposto</span></small></div>
+  </section>
+
+  <!-- Story 9:16: zona segura no topo e no rodapé -->
+  <section class="post post--story post--nevoa" data-nome="exemplo-story" style="--nevoa-x:50%;--nevoa-y:40%">
+    <div class="assinatura"><img src="../assets/simbolo.svg" alt="">Vault System</div>
+    <img src="../componentes/orbita.svg" alt="" style="width:800px;align-self:center;margin:72px 0 48px">
+    <h1 class="titulo">O contexto<br>certo, <span class="bloco">onde</span><br><span class="bloco">você está.</span></h1>
+    <p class="sobretitulo empurra" style="margin-bottom:0;padding-top:48px">Conhecimento distribuído.</p>
+  </section>
+
+</main>
+</body>
+</html>

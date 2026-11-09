@@ -1,0 +1,34 @@
+/* Identidade do Vault System para posts. Mesmos valores de design:default e de design:motion-vs (src/brand.ts).
+   Use sempre os tokens, nunca o valor solto. Posts são sempre no tema claro. */
+@font-face { font-family: "Ubuntu"; font-weight: 400; src: url("../assets/fonts/Ubuntu-400.ttf") format("truetype"); }
+@font-face { font-family: "Ubuntu"; font-weight: 500; src: url("../assets/fonts/Ubuntu-500.ttf") format("truetype"); }
+@font-face { font-family: "Ubuntu"; font-weight: 700; src: url("../assets/fonts/Ubuntu-700.ttf") format("truetype"); }
+
+:root {
+  /* marca */
+  --vs-azul: #0758ed;          /* único destaque: palavra-chave, núcleo, logo, blocos de título */
+  --vs-azul-profundo: #0345bb;
+  --vs-azul-medio: #367cf0;
+  --vs-azul-claro: #82baff;    /* órbitas e ilustração */
+  --vs-orbita: #cedeff;        /* anéis */
+  --vs-link: #9cbaff;          /* ligações do grafo */
+  --vs-azul-nevoa: #eaf2ff;    /* gradiente radial suave atrás do assunto */
+
+  /* texto e superfície */
+  --vs-tinta: #101e39;
+  --vs-tinta-suave: #485b7b;
+  --vs-papel: #ffffff;
+  --vs-papel-azulado: #f7faff;
+  --vs-linha: #dce7fa;
+
+  --vs-fonte: "Ubuntu", system-ui, sans-serif;
+  --vs-fonte-codigo: "Cascadia Mono", Consolas, ui-monospace, monospace;
+
+  /* escala de texto para 1080 px de largura */
+  --post-sobretitulo: 30px;
+  --post-titulo: 112px;
+  --post-titulo-menor: 84px;
+  --post-texto: 40px;
+  --post-legenda: 28px;
+  --post-margem: 96px;
+}
