@@ -179,10 +179,22 @@ export default function Fontes({ s, recarregar }: { s: Sistema; recarregar: () =
         </div>
         {!ultimoConcluido ? (
           <Vazio titulo="Nenhum pull concluído ainda" />
-        ) : !ign.dados ? <Carregando /> : ign.dados.ignorados.total === 0 ? (
+        ) : !ign.dados ? <Carregando /> : ign.dados.ignorados.total === 0 && !ign.dados.ignorados.guardados?.length ? (
           <Vazio titulo="Nada ignorado">O pull #{ultimoConcluido.id} aproveitou todos os arquivos que mudaram.</Vazio>
         ) : (
           <div className="panel-body">
+            {!!ign.dados.ignorados.guardados?.length && (
+              <details style={{ padding: "0 0 12px" }}>
+                <summary style={{ cursor: "pointer" }}>
+                  Guardados como arquivo <span className="muted">({ign.dados.ignorados.guardados.length})</span>: fontes,
+                  imagens, PDF e áudio ficam no vault e vão junto no download e no <code>vs add template</code>. Só não viram texto para a curadoria.
+                </summary>
+                <ul style={{ margin: "10px 0 0", paddingLeft: 18, fontSize: 12 }}>
+                  {ign.dados.ignorados.guardados.slice(0, 200).map((a, n) => <li key={n}><span className="mono">{a.origem && a.origem !== "principal" ? `${a.origem}:` : ""}{a.caminho}</span></li>)}
+                </ul>
+              </details>
+            )}
+            {ign.dados.ignorados.total === 0 && <p className="muted" style={{ margin: 0 }}>Nenhum arquivo ficou de fora.</p>}
             {ign.dados.ignorados.por_motivo.map((g) => (
               <details key={g.motivo} style={{ borderTop: "1px solid var(--line)", padding: "12px 0" }}>
                 <summary style={{ cursor: "pointer" }}>{g.motivo} <span className="muted">({g.quantos})</span></summary>

@@ -139,6 +139,7 @@ export interface Ignorados {
   total: number;
   mascarados: number;
   por_motivo: { motivo: string; quantos: number; arquivos: { caminho: string; motivo: string; origem?: string }[] }[];
+  guardados?: { caminho: string; origem?: string }[];
 }
 
 export interface Sistema extends ResumoSistema {

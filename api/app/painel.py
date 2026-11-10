@@ -112,7 +112,8 @@ def _resumo_pull(p):
     return {"id": p["id"], "pedido_em": p["pedido_em"], "pedido_por": p["pedido_por"],
             "atendido_em": p["atendido_em"], "estado": "concluido" if p["atendido_em"] else "pedido",
             "erro": _erro_do_pull(r), "itens": (r or {}).get("itens", {}),
-            "ignorados": len((r or {}).get("ignorados", [])), "mascarados": (r or {}).get("mascarados", 0),
+            "ignorados": len(_separar(r)[0]), "guardados": len(_separar(r)[1]),
+            "mascarados": (r or {}).get("mascarados", 0),
             "origens": {o: {k: v.get(k) for k in ("de", "para", "nada_novo", "aviso", "erro")}
                         for o, v in ((r or {}).get("origens") or {}).items()}}
 
@@ -130,13 +131,28 @@ def _categoria(motivo):
     return "outro"
 
 
+def _guardado(i):
+    """Binário de um tipo que o vault guarda como arquivo (fonte, imagem, PDF, áudio): não vira texto para o
+    curador, mas fica no vault e sai no download, no vs add template e no MCP. Não é ignorado."""
+    m = (i.get("motivo") or "").lower()
+    return m.startswith(("binário", "acima de")) and bool(arquivos.tipo(i.get("caminho") or ""))
+
+
+def _separar(r):
+    """(ignorados de verdade, guardados como arquivo) de um resultado de pull."""
+    todos = (r or {}).get("ignorados", [])
+    return [i for i in todos if not _guardado(i)], [i for i in todos if _guardado(i)]
+
+
 def _ignorados(p):
     r = _json(p["resultado"], {}) if p else {}
+    ignorados, guardados = _separar(r)
     grupos = collections.OrderedDict()
-    for i in r.get("ignorados", []):
+    for i in ignorados:
         grupos.setdefault(_categoria(i.get("motivo")), []).append(i)
-    return {"total": len(r.get("ignorados", [])), "mascarados": r.get("mascarados", 0),
-            "por_motivo": [{"motivo": k, "quantos": len(v), "arquivos": v} for k, v in grupos.items()]}
+    return {"total": len(ignorados), "mascarados": r.get("mascarados", 0),
+            "por_motivo": [{"motivo": k, "quantos": len(v), "arquivos": v} for k, v in grupos.items()],
+            "guardados": [{"origem": i.get("origem"), "caminho": i.get("caminho")} for i in guardados]}
 
 
 def _verificacao(db, tag):
