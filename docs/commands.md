@@ -36,8 +36,8 @@ Qualquer mudança em um comando começa aqui.
 | `vs init` | Prepara a pasta: grava o `AGENTS.md` (seção gerenciada), o `.vs` e o `VS.lock`. **Não** liga a pasta a um vault. |
 | `vs init vault=<nome>` | Faz o mesmo e liga a pasta ao vault `<nome>`. Padrão `mode=documented`. |
 | `vs init template=<tipo>` | Faz o mesmo e liga a pasta ao vault `template-<tipo>`. Cada subpasta é um template (`<tipo>:<pasta>`). Padrão `mode=literal`. |
-| `vs sync` | Envia a pasta para o vault ligado no `.vs`. O primeiro envio cria o vault. |
-| `vs sync vault=<nome>` | Soma a pasta atual ao vault `<nome>`. Se o vault não existe, ele é criado. Não precisa de `vs init`. |
+| `vs sync` | Envia a pasta para o vault ligado no `.vs`. O primeiro envio cria o vault. Se a pasta não está ligada mas já foi enviada com `sync vault=` ou `sync template=`, reenvia para o mesmo lugar. |
+| `vs sync vault=<nome>` | Soma a pasta atual ao vault `<nome>`. Se o vault não existe, ele é criado. Não precisa de `vs init`. O `.vs` guarda esse envio (`synced_to`), e o próximo `vs sync` já sabe o destino. |
 | `vs sync template=<tipo>` | Soma a pasta atual a `template-<tipo>` como um template, com o nome da pasta (`name=<template>` dá outro nome). |
 
 Parâmetros e flags do `init` e do `sync`:
