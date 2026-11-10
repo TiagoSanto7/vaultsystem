@@ -4,6 +4,7 @@ import { api } from "../api";
 import { useAviso } from "../componentes";
 import { CamposOrigem, ExplicacaoChave, origemParaApi, origemVazia } from "../FormOrigem";
 import { Icone } from "../icones";
+import { EscolherArquivos, pacoteDa, Selecao } from "../EnviarArquivos";
 
 const TAG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 type Tipo = "vault" | "template";
@@ -14,7 +15,7 @@ export default function Cadastrar() {
   const [modo, setModo] = useState<Modo>("documentado");
   const [fonte, setFonte] = useState<"envio" | "git">("envio");
   const [nome, setNome] = useState("");
-  const [pacote, setPacote] = useState<File>();
+  const [selecao, setSelecao] = useState<Selecao | null>(null);
   const [origens, setOrigens] = useState([origemVazia()]);
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -27,15 +28,15 @@ export default function Cadastrar() {
     if (!TAG.test(nome) || (tipo === "vault" && nome.startsWith("template-"))) {
       return setErro("Use minúsculas, números e hífen. O prefixo template- é reservado.");
     }
-    if (fonte === "envio" && (!pacote || pacote.size > 10 * 1024 * 1024)) {
-      return setErro("Escolha um ZIP de até 10 MB.");
+    if (fonte === "envio" && !selecao?.zip && !selecao?.arquivos.length) {
+      return setErro("Escolha os arquivos, uma pasta ou um ZIP.");
     }
     if (fonte === "git" && origens.some(o => !o.repo.trim())) return setErro("Escolha cada repositório Git.");
     setErro("");
     setEnviando(true);
     try {
       if (fonte === "envio") {
-        await api(`/envios/${tag}?modo=${modo}`, { metodo: "POST", corpo: pacote });
+        await api(`/envios/${tag}?modo=${modo}`, { metodo: "POST", corpo: await pacoteDa(selecao!) });
       } else {
         const perfil = modo === "literal" ? "referencia" : "codigo-literal";
         const dados = origens.map(o => ({
@@ -90,9 +91,10 @@ export default function Cadastrar() {
         <option value="envio">Enviar arquivos</option><option value="git">Conectar Git</option>
       </select>
       {fonte === "envio" ? <>
-        <label htmlFor="pacote-vault">Pacote ZIP de até 10 MB</label>
-        <input id="pacote-vault" type="file" accept=".zip,application/zip" required onChange={e => setPacote(e.target.files?.[0])} />
-        <p>Também pode fazer o primeiro envio no terminal com <code>vs sync vault={tag || "meu-projeto"} file=pacote.zip mode={modo === "documentado" ? "documented" : "literal"}</code>.</p>
+        <label htmlFor="envio-vault-arquivos">Arquivos</label>
+        <EscolherArquivos id="envio-vault" valor={selecao} mudar={setSelecao} manterPasta={tipo === "template"} />
+        {tipo === "template" && <small>Num template, escolha a pasta do template: o nome dela vira o nome do template (<code>{tag || "template-tipo"}:&lt;pasta&gt;</code>).</small>}
+        <p>Também pode enviar pelo terminal, da pasta do projeto: <code>{tipo === "template" ? `vs sync template=${nome || "<tipo>"}` : `vs sync vault=${tag || "meu-projeto"}`}</code>.</p>
       </> : <>
         {origens.map((o, i) => <section key={i} style={{ marginTop: 20 }}>
           <h2 style={{ fontSize: 16 }}>{i === 0 ? "Repositório principal" : `Repositório ${i + 1}`}</h2>

@@ -6,6 +6,7 @@ import { useAncora, useDados } from "../dados";
 import { CamposOrigem, ExplicacaoChave, origemDaApi, origemParaApi, origemVazia, TrocarAcesso } from "../FormOrigem";
 import { curto, dataHora, plural, relativo, repoCurto } from "../formato";
 import { Icone } from "../icones";
+import { EscolherArquivos, nomeDeOrigem, pacoteDa, Selecao } from "../EnviarArquivos";
 
 const SITUACAO = {
   em_dia: { texto: "Em dia", tipo: "" },
@@ -19,6 +20,7 @@ const PAGINA = 20;
 
 export default function Fontes({ s, recarregar }: { s: Sistema; recarregar: () => void }) {
   const [adicionar, setAdicionar] = useState(false);
+  const [reenviar, setReenviar] = useState<string | null>(null);
   const [editar, setEditar] = useState<Origem | null>(null);
   const [remover, setRemover] = useState<Origem | null>(null);
   const ativas = s.origens.filter((o) => !o.removida_em).length;
@@ -51,7 +53,7 @@ export default function Fontes({ s, recarregar }: { s: Sistema; recarregar: () =
             <h2>Repositórios</h2>
             <small>Vários repositórios, um contexto compartilhado. O curador verifica cada um a cada rodada.</small>
           </div>
-          <button className="btn" onClick={() => setAdicionar(true)} disabled={!!s.removido_em}><Icone nome="plus" />Adicionar repositório</button>
+          <button className="btn" onClick={() => setAdicionar(true)} disabled={!!s.removido_em}><Icone nome="plus" />Adicionar origem</button>
         </div>
         <div className="grade-cartoes origens">
         {s.origens.map((o) => {
@@ -126,7 +128,9 @@ export default function Fontes({ s, recarregar }: { s: Sistema; recarregar: () =
                 </ul>
                 {!o.removida_em && !s.removido_em && (
                   <div style={{ display: "flex", gap: 16, marginTop: 8 }}>
-                    <button type="button" className="textbtn" onClick={() => setEditar(o)}>{doApp(o.repo) ? "Editar ramo e pastas" : "Editar ramo e leituras"}</button>
+                    {deEnvio(o.repo)
+                      ? <button type="button" className="textbtn" onClick={() => setReenviar(o.nome)}>Enviar nova versão</button>
+                      : <button type="button" className="textbtn" onClick={() => setEditar(o)}>{doApp(o.repo) ? "Editar ramo e pastas" : "Editar ramo e leituras"}</button>}
                     {ativas > 1 && <button type="button" className="textbtn" onClick={() => setRemover(o)}>Remover origem</button>}
                   </div>
                 )}
@@ -250,11 +254,78 @@ export default function Fontes({ s, recarregar }: { s: Sistema; recarregar: () =
       {editar && !doApp(editar.repo) && <EditarOrigem tag={s.tag} origem={editar} fechar={() => setEditar(null)} feito={recarregar} />}
       {remover && <RemoverOrigem tag={s.tag} origem={remover} fechar={() => setRemover(null)} feito={recarregar} />}
       {adicionar && <AdicionarOrigem tag={s.tag} existentes={s.origens.map((o) => o.nome)} fechar={() => setAdicionar(false)} feito={recarregar} />}
+      {reenviar && <EnviarOrigem tag={s.tag} nomeFixo={reenviar} existentes={[]} fechar={() => setReenviar(null)} feito={recarregar} />}
     </>
   );
 }
 
 const doApp = (repo: string) => repo.startsWith("https://github.com/");
+const deEnvio = (repo: string) => repo.startsWith("vault-system:upload");
+const ORIGEM_PADRAO = "envio-local"; // a origem do primeiro envio do vault (não vai como origem= na API)
+const NOME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/** Enviar arquivos, uma pasta ou um ZIP como uma origem do vault: nova (soma ao vault) ou uma nova versão. */
+function EnviarOrigem({ tag, nomeFixo, existentes, fechar, feito, voltar }: {
+  tag: string; nomeFixo?: string; existentes: string[]; fechar: () => void; feito: () => void; voltar?: () => void;
+}) {
+  const template = tag.startsWith("template-");
+  const [nome, setNome] = useState(nomeFixo ?? "");
+  const [tocado, setTocado] = useState(false);
+  const [selecao, setSelecao] = useState<Selecao | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+  const avisar = useAviso();
+  function escolher(s: Selecao | null) {
+    setSelecao(s);
+    if (!nomeFixo && !tocado && s?.pasta) setNome(nomeDeOrigem(s.pasta));
+  }
+  async function enviar(e: FormEvent) {
+    e.preventDefault();
+    if (!nomeFixo && existentes.includes(nome)) return setErro(`Já existe a origem ${nome}: use Enviar nova versão nela.`);
+    if (!NOME.test(nome) || (!nomeFixo && nome === ORIGEM_PADRAO)) return setErro("Use minúsculas, números e hífen.");
+    setEnviando(true);
+    setErro(null);
+    try {
+      const corpo = await pacoteDa(selecao!);
+      await api(`/envios/${tag}${nome === ORIGEM_PADRAO ? "" : `?origem=${encodeURIComponent(nome)}`}`, { metodo: "POST", corpo });
+      avisar(nomeFixo ? `Nova versão de ${nome} enviada. O hub processa em instantes.` : `Origem ${nome} adicionada a ${tag}. O hub processa em instantes.`);
+      feito();
+      fechar();
+    } catch (x) {
+      setErro((x as Error).message);
+      setEnviando(false);
+    }
+  }
+  return (
+    <Modal titulo={nomeFixo ? `Enviar nova versão de ${nomeFixo}` : "Enviar arquivos ou pasta"} aoFechar={fechar} largura={680}>
+      <p style={{ marginTop: 0 }}>
+        {nomeFixo
+          ? "Os arquivos enviados substituem o que esta origem tinha. As outras origens do vault não mudam."
+          : `Os arquivos entram em ${tag} como uma origem nova e somam ao que já está lá, sem apagar nada.`}
+        {template && " Num vault de template, cada pasta de primeiro nível é um template: escolha a pasta do template."}
+      </p>
+      <form onSubmit={enviar} noValidate>
+        {!nomeFixo && <>
+          <label htmlFor="origem-envio-nome">Nome da origem</label>
+          <input id="origem-envio-nome" className="mono" value={nome} placeholder={template ? "nome-do-template" : "documentacao"}
+            onChange={(e) => { setTocado(true); setNome(e.target.value.toLowerCase()); }} />
+        </>}
+        <label htmlFor="origem-envio-arquivos">Arquivos</label>
+        <EscolherArquivos id="origem-envio" valor={selecao} mudar={escolher} manterPasta={template} />
+        {erro && <div className="erro-campo" role="alert">{erro}</div>}
+        <div className="modal-actions">
+          {voltar
+            ? <button type="button" className="btn" onClick={voltar}><Icone nome="back" />Voltar</button>
+            : <button type="button" className="btn" onClick={fechar}>Cancelar</button>}
+          <button className="btn primary" type="submit" disabled={enviando || !nome.trim() || !(selecao?.zip || selecao?.arquivos.length)}>
+            <Icone nome="check" />{enviando ? "Enviando…" : "Enviar"}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 
 /** Pede a árvore de repo/ramo (de novo quando mudam). null enquanto não há repositório. */
 function usePedidoArvore(repo: string, ramo: string) {
@@ -273,7 +344,29 @@ function usePedidoArvore(repo: string, ramo: string) {
   return { id, erro };
 }
 
-function AdicionarOrigem({ tag, existentes, fechar, feito }: { tag: string; existentes: string[]; fechar: () => void; feito: () => void }) {
+function AdicionarOrigem(props: { tag: string; existentes: string[]; fechar: () => void; feito: () => void }) {
+  const [fonte, setFonte] = useState<"" | "envio" | "git">("");
+  if (fonte === "envio") return <EnviarOrigem {...props} voltar={() => setFonte("")} />;
+  if (fonte === "git") return <AdicionarRepositorio {...props} />;
+  return (
+    <Modal titulo="Adicionar origem" aoFechar={props.fechar} largura={680}>
+      <p style={{ marginTop: 0 }}>De onde vem o conteúdo novo de {props.tag}? Ele soma ao que o vault já tem.</p>
+      <div className="grade-cartoes">
+        <button type="button" className="cartao opcao" onClick={() => setFonte("envio")}>
+          <b><Icone nome="plus" /> Enviar arquivos ou pasta</b>
+          <span className="cartao-texto">Arquivos soltos, uma pasta inteira ou um ZIP, direto do seu computador.</span>
+        </button>
+        <button type="button" className="cartao opcao" onClick={() => setFonte("git")}>
+          <b><Icone nome="git" /> Conectar repositório Git</b>
+          <span className="cartao-texto">O hub busca o repositório a cada pull e acompanha os commits.</span>
+        </button>
+      </div>
+      <div className="modal-actions"><button type="button" className="btn" onClick={props.fechar}>Cancelar</button></div>
+    </Modal>
+  );
+}
+
+function AdicionarRepositorio({ tag, existentes, fechar, feito }: { tag: string; existentes: string[]; fechar: () => void; feito: () => void }) {
   const [o, setO] = useState(origemVazia(existentes.includes("principal") ? "documentacao" : "principal"));
   // repositório do App passa pela árvore antes de adicionar, como no Novo vault.
   const [pastas, setPastas] = useState(false);

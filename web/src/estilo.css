@@ -637,3 +637,9 @@ details.ajustar .segredo textarea { white-space: pre-wrap; overflow-x: hidden; m
 .passos li span { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
 @media (max-width: 640px) { .grade-cartoes, .grade-cartoes.origens { grid-template-columns: 1fr; } }
 .columns.iguais { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+
+/* Envio de arquivos ou pasta pelo painel. */
+.escolher-arquivos { display: grid; gap: 8px; }
+.escolher-arquivos .escolha { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 8px; background: var(--soft); font-size: 13px; }
+button.cartao.opcao { text-align: left; cursor: pointer; font: inherit; color: inherit; }
+button.cartao.opcao b { display: inline-flex; align-items: center; gap: 8px; }
