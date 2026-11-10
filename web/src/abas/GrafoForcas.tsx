@@ -368,7 +368,7 @@ function Desenho({ g, tag, emColunas }: { g: GrafoApi; tag: string; emColunas: (
             <div className="mapa-acoes">
               <Link className="btn primary" to={`/sistemas/${tag}/conhecimento?nota=${encodeURIComponent(n.chave)}`}><Icone nome="file" />Abrir nota</Link>
               <button type="button" className="btn" onClick={() => emColunas(n.chave)}><Icone nome="arrow" />Ver relações em colunas</button>
-              <button type="button" className="btn" disabled title="O Agente chega com o "><Icone nome="spark" />Perguntar sobre isso</button>
+              <Link className="btn" to={`/conversas?vault=${encodeURIComponent(tag)}&nota=${encodeURIComponent(n.chave)}`} title="Abre uma conversa com o Vault-I sobre esta nota"><Icone nome="spark" />Perguntar sobre isso</Link>
             </div>
           </div>
         ) : (

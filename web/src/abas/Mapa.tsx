@@ -346,9 +346,10 @@ function Detalhes({ tag, v, sel, selecionar, explorar }: {
             <Link className="btn primary" to={`/sistemas/${tag}/conhecimento?nota=${encodeURIComponent(no.chave)}`}><Icone nome="file" />Abrir nota</Link>
           )}
           {!ehFoco && <button type="button" className="btn" onClick={() => explorar(no)}><Icone nome="arrow" />Explorar a partir daqui</button>}
-          <button type="button" className="btn" disabled title="O Agente chega com o ">
+          <Link className="btn" to={`/conversas?vault=${encodeURIComponent(tag)}${no.tipo === "nota" && no.chave ? `&nota=${encodeURIComponent(no.chave)}` : ""}`}
+            title="Abre uma conversa com o Vault-I sobre isso">
             <Icone nome="spark" />Perguntar sobre isso
-          </button>
+          </Link>
         </div>
       </div>
       {ehFoco && <ListaRelacoes v={v} selecionar={selecionar} explorar={explorar} />}

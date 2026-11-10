@@ -264,6 +264,44 @@ def chamar(config, pedido):
         raise RuntimeError("o modelo não devolveu o JSON esperado") from None
 
 
+def responder(config, sistema, pedido):
+    """Resposta em texto livre (conversa do hub, vault_system/conversa.py), com o mesmo provedor da curadoria."""
+    if config["provedor"] == "anthropic":
+        import anthropic
+        cliente = anthropic.Anthropic(api_key=config["chave"])
+        try:
+            r = cliente.messages.create(model=config["modelo"], max_tokens=8000, system=sistema,
+                                        thinking={"type": "adaptive"}, messages=[{"role": "user", "content": pedido}])
+        except anthropic.AuthenticationError:
+            raise RuntimeError("chave de API recusada pela Anthropic") from None
+        except anthropic.RateLimitError:
+            raise RuntimeError("limite de uso da Anthropic atingido; tente de novo mais tarde") from None
+        except anthropic.APIStatusError as e:
+            raise RuntimeError(f"Anthropic respondeu {e.status_code}: {e.message}") from None
+        except anthropic.APIConnectionError:
+            raise RuntimeError("sem conexão com a API da Anthropic") from None
+        if r.stop_reason == "refusal":
+            raise RuntimeError("o modelo recusou responder")
+        return "".join(b.text for b in r.content if b.type == "text")
+    if config["provedor"] == "openai":
+        import openai
+        cliente = openai.OpenAI(api_key=config["chave"])
+        try:
+            r = cliente.responses.create(model=config["modelo"], instructions=sistema, input=pedido)
+        except openai.AuthenticationError:
+            raise RuntimeError("chave de API recusada pela OpenAI") from None
+        except openai.RateLimitError:
+            raise RuntimeError("limite de uso da OpenAI atingido; tente de novo mais tarde") from None
+        except openai.APIStatusError as e:
+            raise RuntimeError(f"OpenAI respondeu {e.status_code}") from None
+        except openai.APIConnectionError:
+            raise RuntimeError("sem conexão com a API da OpenAI") from None
+        return r.output_text
+    if config["provedor"] == "claude-code":
+        return _claude_code(config, pedido, sistema)
+    raise RuntimeError(f"provedor desconhecido: {config['provedor']}")
+
+
 def _so_json(texto):
     """O objeto JSON da resposta, mesmo que venha entre cercas de código ou com texto em volta."""
     texto = (texto or "").strip()
@@ -278,7 +316,7 @@ CLAUDE_BIN = os.environ.get("VAULT_I_CLAUDE_BIN", "claude")
 SEM_FERRAMENTAS = "Bash,Edit,Write,MultiEdit,NotebookEdit,Read,Glob,Grep,LS,WebFetch,WebSearch,Task,TodoWrite"
 
 
-def _claude_code(config, pedido):
+def _claude_code(config, pedido, instrucao=None):
     """Token do `claude setup-token`: roda a CLI oficial do Claude Code em modo não interativo (`claude -p`),
     numa pasta vazia e sem ferramentas, só para gerar o JSON das notas."""
     import subprocess
@@ -287,7 +325,7 @@ def _claude_code(config, pedido):
         env = {**os.environ, "CLAUDE_CODE_OAUTH_TOKEN": config["chave"], "HOME": pasta,
                "DISABLE_AUTOUPDATER": "1", "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"}
         env.pop("ANTHROPIC_API_KEY", None)  # a chave de API teria precedência sobre o token
-        instrucao = (SISTEMA + "\n\nResponda só com um objeto JSON neste esquema, sem texto antes ou depois:\n"
+        instrucao = instrucao or (SISTEMA + "\n\nResponda só com um objeto JSON neste esquema, sem texto antes ou depois:\n"
                      + json.dumps(ESQUEMA, ensure_ascii=False))
         try:
             r = subprocess.run([CLAUDE_BIN, "-p", "--output-format", "json", "--model", config["modelo"],
