@@ -511,3 +511,33 @@ def test_estudo_curado_links_resolvidos_e_sem_duplicar(tela, tmp_path, monkeypat
     assert referencia == ["vetores.md.md"] or referencia == ["vetores.md"], referencia  # sem AGENTS.md e sem as notas
     assert not (base / "indices" / "codigo.md").exists()
     assert [p for p in problemas if "link quebrado" in p] == [f"link quebrado: `sistemas/{tag}/conceitos/vetor-conceito` → `docs/vs/nada.md`"]
+
+
+def test_sync_vault_fica_no_vs_e_o_proximo_sync_reenvia(tmp_path, monkeypatch):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("vs_cli_envios", os.path.join(os.path.dirname(__file__), "..", "cli", "vs.py"))
+    vs = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(vs)
+    pasta = tmp_path / "vetores"
+    (pasta / "docs").mkdir(parents=True)
+    (pasta / "docs" / "nota.md").write_text("# Nota\n")
+    enviados = []
+    monkeypatch.setattr(vs, "url_base", lambda: "http://hub")
+    monkeypatch.setattr(vs, "_enviar", lambda tag, pacote, modo, curar=False, origem=None:
+                        enviados.append((tag, modo, origem)) or {"arquivos": 1, "commit": "a" * 40})
+    assert vs.cmd_sync([], {"vault": "estudos", "dir": str(pasta)}, set()) == 0
+    m = json.loads((pasta / ".vs").read_text())
+    assert m["vault"] is None and m["synced_to"] == [{"vault": "estudos", "origin": "vetores", "mode": "documented"}]
+    assert vs.cmd_sync([], {"dir": str(pasta)}, set()) == 0
+    assert enviados == [("estudos", "documentado", "vetores")] * 2
+    env = {**os.environ, "VS_CLI": "1", "XDG_CONFIG_HOME": str(tmp_path / "cfg"), "VS_URL": "", "PYTHONUTF8": "1"}
+    env.pop("VS_TOKEN", None)
+    r = _vs(["init"], pasta, env)
+    assert r.returncode == 0 and "ainda sem vault" not in r.stdout and "estudos (origem vetores)" in r.stdout, r.stdout
+    assert json.loads((pasta / ".vs").read_text())["synced_to"][0]["vault"] == "estudos"
+    vs.cmd_sync([], {"template": "design", "dir": str(pasta)}, set())
+    try:
+        vs.cmd_sync([], {"dir": str(pasta)}, set())
+        assert False
+    except vs.Erro as e:
+        assert "mais de um vault" in str(e)

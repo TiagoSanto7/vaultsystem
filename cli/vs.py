@@ -596,6 +596,26 @@ def _ler_vs(raiz):
     return m if isinstance(m, dict) else {}
 
 
+def _envios_do_vs(vs):
+    """Para onde a pasta já foi enviada com vs sync vault=/template= (lista do .vs)."""
+    return [e for e in ((vs or {}).get("synced_to") or [])
+            if isinstance(e, dict) and isinstance(e.get("vault"), str) and TAG.fullmatch(e["vault"])]
+
+
+def _lembrar_envio(raiz, hub, tag, origem, modo):
+    """Grava no .vs o vault e a origem do envio, para o próximo vs sync e para o vs init saberem."""
+    vs = _ler_vs(raiz)
+    if vs is None:
+        vs = {"version": 3, "project": os.path.basename(raiz), "hub": hub or None, "vault": None, "mode": None}
+    envios = [e for e in _envios_do_vs(vs) if e["vault"] != tag]
+    vs["synced_to"] = envios + [{"vault": tag, "origin": origem, "mode": modo}]
+    try:
+        with open(os.path.join(raiz, ".vs"), "w", encoding="utf-8") as f:
+            f.write(json.dumps(vs, ensure_ascii=False, indent=2) + "\n")
+    except OSError as e:
+        print(f"{cli()}: aviso: não deu para gravar o envio no .vs ({e})", file=sys.stderr)
+
+
 def _arquivos_do_projeto(raiz):
     """Caminhos relativos (com /) do que vai no vs sync: o que o Git versionaria (respeita o .gitignore),
     ou a pasta inteira fora de um repositório. Sempre sem FORA_DO_SYNC e sem .env (o .env.example vai)."""
@@ -715,13 +735,25 @@ def _sync_zip(alvo, params, flags):
 
 
 def _sync_projeto(params, flags, alvo=None):
-    if set(params) - {"dir", "mode", "name", "agent"} or flags - {"json", "dry-run", "curate"} or (params.get("mode") and not alvo):
+    if set(params) - {"dir", "mode", "name", "agent"} or flags - {"json", "dry-run", "curate"}:
+        raise Erro(USO_SYNC)
+    if params.get("mode") and not alvo and not _envios_do_vs(_ler_vs(os.path.abspath(params.get("dir") or "."))):
         raise Erro(USO_SYNC)
     if params.get("mode") and params["mode"] not in MODOS:
         raise Erro("modo inválido: use mode=literal ou mode=documented")
     raiz = os.path.abspath(params.get("dir") or ".")
     vs = _ler_vs(raiz)
     origem = prefixo = None
+    envios = _envios_do_vs(vs)
+    if not alvo and vs is not None and not vs.get("vault") and envios:
+        if len(envios) > 1:
+            raise Erro("esta pasta já foi enviada para mais de um vault ("
+                       + ", ".join(e["vault"] for e in envios) + f"): escolha com {cli()} sync vault=<name>")
+        e = envios[0]
+        alvo = ("template" if e["vault"].startswith("template-") else "vault", e["vault"])
+        params = {**params, "mode": params.get("mode") or e.get("mode")}
+        if e.get("origin") and not params.get("name"):
+            params["name"] = e["origin"]
     if alvo:
         # Destino escolhido na hora: o modo vem do parâmetro, do .vs (se for o mesmo vault) ou do padrão do tipo.
         tipo, tag = alvo
@@ -770,6 +802,8 @@ def _sync_projeto(params, flags, alvo=None):
               + "\nNada foi enviado (--dry-run).")
         return 0
     r = _enviar(tag, _empacotar(raiz, nomes, prefixo), MODO_NO_HUB[modo], False, origem)
+    if origem:
+        _lembrar_envio(raiz, hub, tag, origem, modo)
     if curadoria:
         r["curadoria"] = curadoria
     r.update({"vault": tag, "mode": modo, "notas_do_agente": len(notas)})
@@ -920,8 +954,14 @@ def _aplicar_template(ident, params, flags, iniciar=False):
     marca = {"novo": "+", "sobrescreve": "~", "igual": "=", "mantido": "=", "acrescenta": "+", "atualiza": "~"}
     if iniciar:
         resultado.update({"vault": manifesto["vault"], "mode": manifesto["mode"], "hub": manifesto["hub"]})
-    vinculo = ((f"\nPasta pronta, ainda sem vault. Envie com {cli()} sync vault=<name> ou {cli()} sync template=<type>."
-                if not manifesto["vault"] else "") if iniciar else "")
+    envios = _envios_do_vs(manifesto) if iniciar else []
+    vinculo = ""
+    if iniciar and not manifesto["vault"]:
+        vinculo = (("\nPasta pronta. Ela já é enviada para "
+                    + ", ".join(f"{e['vault']} (origem {e['origin']})" for e in envios)
+                    + f". Para reenviar: {cli()} sync"
+                    + ("" if len(envios) == 1 else " vault=<name>") + ".") if envios else
+                   f"\nPasta pronta, ainda sem vault. Envie com {cli()} sync vault=<name> ou {cli()} sync template=<type>.")
     vinculo = vinculo or (f"\nProjeto ligado ao vault {manifesto['vault']} ({manifesto['mode']})"
                + (f" no hub {manifesto['hub']}" if manifesto["hub"] else " (sem hub: rode vs login)")
                + (f", workspace de {manifesto['connection']['owner']}" if (manifesto.get("connection") or {}).get("owner") else "")
