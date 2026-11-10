@@ -486,3 +486,28 @@ def test_curate_local_roda_o_agente_na_pasta(tmp_path, monkeypatch):
     assert "-p" in args and "acceptEdits" in args and "Bash" in args  # Bash vai em disallowedTools
     assert (pasta / "token.txt").read_text().strip().startswith("sk-ant-oat01-")
     assert "não consegui falar" in r.stderr
+
+
+def test_estudo_curado_links_resolvidos_e_sem_duplicar(tela, tmp_path, monkeypatch):
+    from vault_system import notas
+    cliente, _, cred = tela
+    monkeypatch.setenv("VAULT_DIR", str(tmp_path / "vault"))
+    tag = "estudos"
+    h = {"Authorization": "Bearer " + cred.criar("autor", [tag], [tag])}
+    conceito = "---\nvs: conceito\ntitulo: O que é um vetor\norigens:\n  - vetores.md\n---\n# O que é um vetor\n\nVeja [[vetores-equipolentes]] e [[docs/vs/nada.md]].\n"
+    regra = "---\nvs: regra\ntitulo: Vetores equipolentes\norigens:\n  - vetores.md\n---\n# Vetores equipolentes\n\nVolte a [[vetor-conceito|definição]].\n"
+    pacote = {"vetores.md": "# Vetores\n", "AGENTS.md": "# AGENTS.md\n", "docs/vs/vetor-conceito.md": conceito,
+              "docs/vs/vetores-equipolentes.md": regra}
+    r = cliente.put(f"/v1/sistemas/{tag}/envio?mode=documented&origin=vetores", content=zip_de(pacote), headers=h)
+    assert r.status_code == 200, r.text
+    (tmp_path / "vault" / "sistemas" / tag / "_meta").mkdir(parents=True)
+    problemas = _processar(tag)
+    base = tmp_path / "vault" / "sistemas" / tag
+    _, corpo = notas.ler(str(base / "conceitos" / "vetor-conceito.md"))
+    assert f"[[sistemas/{tag}/regras/vetores-equipolentes]]" in corpo and "[[docs/vs/nada.md]]" in corpo
+    _, corpo = notas.ler(str(base / "regras" / "vetores-equipolentes.md"))
+    assert f"[[sistemas/{tag}/conceitos/vetor-conceito|definição]]" in corpo
+    referencia = sorted(p.name for p in (base / "referencia").rglob("*.md"))
+    assert referencia == ["vetores.md.md"] or referencia == ["vetores.md"], referencia  # sem AGENTS.md e sem as notas
+    assert not (base / "indices" / "codigo.md").exists()
+    assert [p for p in problemas if "link quebrado" in p] == [f"link quebrado: `sistemas/{tag}/conceitos/vetor-conceito` → `docs/vs/nada.md`"]
