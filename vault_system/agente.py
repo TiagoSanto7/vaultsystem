@@ -25,12 +25,14 @@ pasta do template também vale como raiz (`tokens/cores.css` dentro de
 sai da nota, com aviso. Sem nenhuma origem válida, a origem é a própria nota.
 """
 import os
+import posixpath
 import re
 
 from . import estado, filtros, historico, ingestao, literal, notas
 
 # tipo no cabeçalho do agente -> (pasta no vault, tipo_nota)
 TIPOS = {
+    "conceito": ("conceitos", "conceito"), "definicao": ("conceitos", "conceito"),
     "nota": ("notas", "nota"), "documento": ("notas", "nota"),
     "decisao": ("decisoes", "decisao"),
     "elemento": ("elementos", "elemento"), "componente": ("elementos", "elemento"),
@@ -42,6 +44,8 @@ TIPOS = {
 }
 PASTAS = {p: t for p, t in TIPOS.values()}
 CURADA_POR = "agente"
+LINK = re.compile(r"\[\[([^\]|#]+)((?:#[^\]|]*)?)((?:\|[^\]]*)?)\]\]")
+NAO_E_CONHECIMENTO = {"agents.md"}  # o protocolo do vs init: fica no projeto, não vira nota no vault
 LIMITE = 256 * 1024
 
 
@@ -117,6 +121,17 @@ def _origens(tag, nota, pedidas, existentes):
     return list(dict.fromkeys(achadas)), faltam
 
 
+def _resolver(m, mapa):
+    """[[vetor-representacao]] ou [[docs/vs/vetor-representacao.md]] -> [[sistemas/<tag>/<pasta>/<nome>]]."""
+    alvo = m.group(1).strip().replace("\\", "/").lstrip("./")
+    if alvo.lower().endswith(".md"):
+        alvo = alvo[:-3]
+    for chave in (alvo.lower(), posixpath.basename(alvo).lower()):
+        if chave in mapa:
+            return f"[[{mapa[chave]}{m.group(2)}{m.group(3)}]]"
+    return m.group(0)
+
+
 def importadas(tag):
     """{caminho da nota no vault: ref da nota no projeto} das notas que vieram do agente."""
     saida = {}
@@ -135,6 +150,7 @@ def importar(db, tag):
         return 0, 0
     antes, agora = importadas(tag), estado.agora()
     feitas, gravadas, usados = set(), 0, set()
+    lidas, mapa = [], {}  # mapa: como o agente chama a nota ([[nome]]) -> chave da nota no vault
     for o in db.execute("SELECT * FROM origens WHERE tag = ? AND removida_em IS NULL ORDER BY nome", (tag,)).fetchall():
         commit, clone = o["commit_processado"], ingestao.dir_clone(tag, o["nome"])
         if not commit or not os.path.isdir(os.path.join(clone, "objects")):
@@ -168,20 +184,37 @@ def importar(db, tag):
             if ligacoes:
                 corpo = corpo.rstrip("\n") + "\n\n<!-- arquivos -->\n## Arquivos de origem\n\n" + "\n".join(ligacoes) + "\n"
             destino = _destino(tag, pasta, caminho, usados)
-            velho = notas.ler(destino)[0] if os.path.exists(destino) else {}
-            cab_vault = {"sistema": tag, "tipo_nota": tipo, "origens": refs, "commit_origem": commit,
-                         "criado_em": velho.get("criado_em") or agora, "atualizado_em": agora,
-                         "curada_por": CURADA_POR, "nota_origem": estado.ref(o["nome"], caminho)}
-            if velho and os.path.exists(destino) and notas.ler(destino)[1] == corpo.lstrip("\n") \
-                    and {k: v for k, v in velho.items() if k != "atualizado_em"} == \
-                    {k: v for k, v in cab_vault.items() if k != "atualizado_em"}:
-                feitas.add(destino)
-                continue  # nada mudou: não regrava (sem commit novo no vault)
-            notas.escrever(destino, cab_vault, corpo)
-            for tipo_aviso, detalhe in avisos:  # só quando a nota muda: sem repetir a cada rodada
-                historico.aviso(db, tag, tipo_aviso, detalhe, nota=notas.chave(destino))
+            chave_vault = notas.chave(destino)
+            sem_ext = caminho[:-3]
+            for apelido in (sem_ext, posixpath.basename(sem_ext), titulo):
+                if apelido:
+                    mapa.setdefault(apelido.strip().lower(), chave_vault)
+            for copia in (literal.nota_literal(tag, o["nome"], caminho),):
+                if os.path.exists(copia):
+                    os.remove(copia)  # a nota do agente não fica de novo como arquivo bruto
+            lidas.append((o, caminho, commit, refs, corpo, destino, tipo, avisos))
+        for nome_md in NAO_E_CONHECIMENTO:
+            for caminho in arvore:
+                if posixpath.basename(caminho).lower() == nome_md:
+                    copia = literal.nota_literal(tag, o["nome"], caminho)
+                    if os.path.exists(copia):
+                        os.remove(copia)
+    for o, caminho, commit, refs, corpo, destino, tipo, avisos in lidas:
+        corpo = LINK.sub(lambda m: _resolver(m, mapa), corpo)
+        velho = notas.ler(destino)[0] if os.path.exists(destino) else {}
+        cab_vault = {"sistema": tag, "tipo_nota": tipo, "origens": refs, "commit_origem": commit,
+                     "criado_em": velho.get("criado_em") or agora, "atualizado_em": agora,
+                     "curada_por": CURADA_POR, "nota_origem": estado.ref(o["nome"], caminho)}
+        if velho and os.path.exists(destino) and notas.ler(destino)[1] == corpo.lstrip("\n") \
+                and {k: v for k, v in velho.items() if k != "atualizado_em"} == \
+                {k: v for k, v in cab_vault.items() if k != "atualizado_em"}:
             feitas.add(destino)
-            gravadas += 1
+            continue  # nada mudou: não regrava (sem commit novo no vault)
+        notas.escrever(destino, cab_vault, corpo)
+        for tipo_aviso, detalhe in avisos:  # só quando a nota muda: sem repetir a cada rodada
+            historico.aviso(db, tag, tipo_aviso, detalhe, nota=notas.chave(destino))
+        feitas.add(destino)
+        gravadas += 1
     apagadas = 0
     for c in antes:
         if c not in feitas and os.path.exists(c):

@@ -97,19 +97,24 @@ origens:
 O desconto nunca passa de 15%: `preco_final` limita o valor recebido.
 ```
 
-- `vs`: o tipo da nota.
-  - `elemento`: uma peça reutilizável (componente, token, ícone, tela).
-  - `regra`: o que precisa valer sempre (de negócio, de uso, de estilo).
-  - `orientacao`: como fazer ou montar algo, passo a passo.
+- `vs`: o tipo da nota. Servem para qualquer assunto (estudo, design, produto,
+  código):
+  - `conceito`: o que algo é, uma definição (ex.: "o que é um vetor").
+  - `regra`: o que precisa valer sempre: uma propriedade, uma restrição, uma
+    regra de negócio ou de estilo (ex.: "vetores equipolentes").
+  - `orientacao`: como fazer algo, passo a passo (ex.: "como deslocar um vetor").
+  - `elemento`: uma peça reutilizável: componente, token, ícone, fórmula.
   - `decisao`: o que foi decidido, por quê e o que ficou de fora.
-  - `modulo`, `integracao`, `api`, `dado`: o código por pasta, serviço
-    externo, rota e estrutura de dados.
-  - `nota`: o que não se encaixa nos outros.
+  - `modulo`, `integracao`, `api`, `dado`: só para código: o que uma pasta faz,
+    um serviço externo, uma rota, uma estrutura de dados.
+  - `nota`: só se nada acima servir.
 - `origens`: os arquivos do projeto que a nota explica, com o caminho a partir
   da raiz. O hub liga a nota à cópia de cada um. Arquivo que não existe sai da
   nota, com aviso.
-- O corpo começa com `# Título`. Explique o comportamento e o porquê; os
-  arquivos em si já vão junto, como estão. Trechos curtos podem ser citados.
+- O corpo começa com `# Título`. Explique com as suas palavras e diga o porquê;
+  os arquivos em si já vão junto, como estão. Trechos curtos podem ser citados.
+- Para ligar uma nota a outra, use `[[nome-do-arquivo]]`, sem `.md`
+  (ex.: `[[vetor-representacao]]`). O hub troca pelo endereço certo.
 - **Nunca** escreva credenciais, tokens, senhas ou dados pessoais. O hub mascara
   o que tiver cara de segredo e avisa.
 

@@ -94,8 +94,10 @@ Como pastas e vaults se relacionam:
 
 O `vs init` grava no `AGENTS.md` uma seção gerenciada (entre `<!-- vs:inicio -->` e
 `<!-- vs:fim -->`) que diz ao agente do projeto como escrever as notas e quais
-comandos ele pode rodar. Tipos de nota, no campo `vs:` do cabeçalho: `elemento`,
-`regra`, `orientacao`, `decisao`, `modulo`, `integracao`, `api`, `dado` e `nota`.
+comandos ele pode rodar. Tipos de nota, no campo `vs:` do cabeçalho, para qualquer assunto:
+`conceito`, `regra`, `orientacao`, `elemento`, `decisao` e `nota`; só para código: `modulo`,
+`integracao`, `api` e `dado`. Para ligar notas, `[[nome-do-arquivo]]` (sem `.md`); o hub troca pelo
+endereço da nota no vault.
 
 ## Comandos renomeados
 

@@ -38,6 +38,7 @@ guia acompanha); bloco de código fora de trecho é tirado do guia.
 import hashlib
 import json
 import os
+import posixpath
 import re
 from html.parser import HTMLParser
 
@@ -99,6 +100,18 @@ def _registrar(tag, linhas):
         f.write("".join(f"- {l}\n" for l in linhas))
 
 
+def _so_do_agente(db, tag, caminho, texto):
+    """No modo documentado, as notas do agente entram curadas (agente.py) e o AGENTS.md é o protocolo do
+    projeto: nenhum dos dois fica de novo no vault como arquivo bruto."""
+    from . import agente
+    s = db.execute("SELECT modo FROM sistemas WHERE tag = ?", (tag,)).fetchone()
+    if not s or s["modo"] != "documentado":
+        return False
+    if posixpath.basename(caminho).lower() in agente.NAO_E_CONHECIMENTO:
+        return True
+    return caminho.lower().endswith(".md") and agente.do_agente(agente.cabecalho(texto)[0])
+
+
 def copiar(db, tag):
     """Itens da fila dos perfis copiados: viram nota literal, ou a nota sai. Os
     de `referencia` saem da fila; os de `referencia-explicada` ficam para o
@@ -128,6 +141,12 @@ def copiar(db, tag):
                 db.execute("UPDATE fila SET erro = ?, parado_em = ? WHERE id = ?",
                            (f"arquivo do lote indisponível: {e}", agora, i["id"]))
             historico.aviso(db, tag, "item_parado", f"{ref}: arquivo do lote indisponível para a cópia literal")
+            continue
+        if _so_do_agente(db, tag, i["caminho"], texto):
+            if os.path.exists(c):
+                os.remove(c)
+            linhas.append(f"item-{i['id']}: {ref} é nota do agente ou o AGENTS.md: não vira cópia literal")
+            feitos.append(i["id"])
             continue
         corpo = corpo_de(i["caminho"], texto)
         velho = notas.ler(c)[0] if os.path.exists(c) else {}

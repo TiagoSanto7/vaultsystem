@@ -72,6 +72,12 @@ def indices(tag):
         _escrever(tag, "documentos.md", f"Documentos de {tag}", linhas_d)
         _escrever(tag, "assuntos.md", f"Assuntos de {tag}", linhas_a)
     codigo = notas.todas(tag, PERFIS["codigo"])
+    # Só é índice de código se o vault tem notas de código de verdade (regras sozinhas podem ser de qualquer assunto).
+    if not any(k.split("/")[2] in ("modulos", "integracoes", "apis", "dados", infra.PASTA) for k in codigo):
+        codigo = {}
+        velho = os.path.join(notas.pasta_tag(tag), "indices", "codigo.md")
+        if os.path.exists(velho):
+            os.remove(velho)
     if codigo:
         linhas = []
         for pasta in PERFIS["codigo"]:
