@@ -615,3 +615,25 @@ details.ajustar .segredo textarea { white-space: pre-wrap; overflow-x: hidden; m
 .escolha-token { display: grid; gap: 10px; margin: 6px 0 16px; }
 .escolha-token .check { align-items: flex-start; gap: 10px; white-space: normal; color: var(--text); }
 .escolha-token .check input { margin-top: 2px; flex: none; }
+
+/* Cartões em grade: catálogo de templates (CLI) e repositórios (Fontes). */
+.grade-cartoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.grade-cartoes.origens { padding: 0 23px 22px; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
+.cartao { border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 10px; background: var(--surface); min-width: 0; transition: border-color 0.15s, box-shadow 0.15s; }
+.cartao:hover { border-color: color-mix(in srgb, var(--green) 35%, var(--line)); box-shadow: 0 3px 10px #00000008; }
+.cartao-topo { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.cartao-topo b { overflow-wrap: anywhere; }
+.cartao-texto { margin: 0; font-size: 13px; color: var(--muted); flex: 1; }
+.cartao-cmd { display: block; font-size: 12px; padding: 7px 10px; background: var(--soft); border-radius: 6px; overflow-x: auto; white-space: nowrap; }
+.cartao-rodape { display: flex; justify-content: space-between; align-items: center; gap: 10px; border-top: 1px solid var(--line); padding-top: 10px; font-size: 11px; color: var(--muted); }
+.cartao .kv { margin-top: 4px !important; }
+.catalogo-filtros { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 18px; }
+.catalogo-filtros input { flex: 1 1 240px; margin: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 999px; padding: 5px 12px; font-size: 12px; cursor: pointer; }
+.chip:hover { background: var(--soft); }
+.chip.ativo { background: var(--tint); color: var(--green); border-color: color-mix(in srgb, var(--green) 35%, var(--line)); font-weight: 500; }
+.passos { margin: 0; padding-left: 20px; display: grid; gap: 12px; }
+.passos li span { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
+@media (max-width: 640px) { .grade-cartoes, .grade-cartoes.origens { grid-template-columns: 1fr; } }
+.columns.iguais { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
