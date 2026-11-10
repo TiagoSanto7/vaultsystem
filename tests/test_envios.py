@@ -68,3 +68,23 @@ def test_cli_cria_vault_documentado_e_recusa_traversal(tela):
     assert cliente.put(url, content=zip_de({"src/main.py": "print('oi')\n"}), headers=headers).status_code == 200
     assert cliente.put(f"/v1/sistemas/{tag}/envio?modo=literal", content=zip_de({"a.md": "x"}),
                        headers=headers).status_code == 409
+
+
+def test_painel_soma_origem_por_envio(tela, tmp_path, monkeypatch):
+    from vault_system import estado
+
+    cliente, _, _ = tela
+    monkeypatch.setenv("VAULT_DIR", str(tmp_path / "vault"))
+    assert entrar(cliente).status_code == 200
+    assert cliente.post("/v1/painel/envios/estudos?modo=documentado", content=zip_de({"a.md": "# A\n"})).status_code == 201
+    # pasta enviada pelo painel: vira uma origem nova e soma ao vault, sem trocar o modo
+    r = cliente.post("/v1/painel/envios/estudos?origem=vetores", content=zip_de({"vetores.md": "# Vetores\n"}))
+    assert r.status_code == 201, r.text
+    # nova versão da mesma origem e do envio principal (sem origem=)
+    assert cliente.post("/v1/painel/envios/estudos?origem=vetores", content=zip_de({"vetores.md": "# V2\n"})).status_code == 201
+    assert cliente.post("/v1/painel/envios/estudos", content=zip_de({"a.md": "# A2\n"})).status_code == 201
+    assert cliente.post("/v1/painel/envios/estudos?origem=envio-local", content=zip_de({"x.md": "x"})).status_code == 400
+    with estado.conectar() as db:
+        nomes = [o["nome"] for o in db.execute("SELECT nome FROM origens WHERE tag = 'estudos' ORDER BY id")]
+        modo = db.execute("SELECT modo FROM sistemas WHERE tag = 'estudos'").fetchone()["modo"]
+    assert nomes == ["envio-local", "vetores"] and modo == "documentado"
