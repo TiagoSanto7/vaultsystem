@@ -95,12 +95,16 @@ def test_selo_pela_precedencia(tela):
     db = estado.conectar()
     with db:
         db.execute("UPDATE pulls SET atendido_em = 'x', resultado = ? WHERE id = ?",
-                   (json.dumps({"itens": {}, "ignorados": [{"caminho": ".env", "motivo": "segredo (.env)"}],
+                   (json.dumps({"itens": {}, "ignorados": [{"caminho": ".env", "motivo": "segredo (.env)"},
+                                              {"caminho": "public/fonts/Ubuntu-400.ttf", "motivo": "binário"}],
                                 "origens": {"principal": {"de": "a", "para": "b"}}}), p["pedido"]))
         db.execute("UPDATE origens SET commit_pendente = 'b', commit_processado = 'b', acesso_ok = 1, commits_atras = 0")
     assert _selo(cliente) == "em_dia"
     s = cliente.get("/v1/painel/sistemas").json()["sistemas"][0]
-    assert s["sinais"]["ignorados"] == {"total": 1, "motivos": ["segredo"]}
+    assert s["sinais"]["ignorados"] == {"total": 1, "motivos": ["segredo"]}  # a fonte fica guardada, não é ignorada
+    from app import painel
+    ign = painel._ignorados(db.execute("SELECT * FROM pulls WHERE id = ?", (p["pedido"],)).fetchone())
+    assert ign["guardados"] == [{"origem": None, "caminho": "public/fonts/Ubuntu-400.ttf"}]
     # Lote com erro na última rodada: com problema; uma rodada depois (sem lote), o erro antigo não prende o selo.
     with db:
         r1 = db.execute("INSERT INTO rodadas (modo, tags, inicio, fim, resultado) VALUES ('agenda', '[\"sis\"]', 'a', 'b', "
