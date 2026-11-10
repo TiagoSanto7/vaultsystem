@@ -122,6 +122,10 @@ export default function Layout() {
           <span>Vaults</span>
           {dados && <span className="count">{dados.sistemas.length}</span>}
         </NavLink>
+        <NavLink to="/conversas" className="nav" title="Conversas">
+          <Icone nome="spark" />
+          <span>Conversas</span>
+        </NavLink>
         <NavLink to="/tokens" className="nav" title="Tokens">
           <Icone nome="key" />
           <span>Tokens</span>

@@ -19,7 +19,7 @@ import re
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
-from vault_system import arquivos, arvore, estado, github_app, historico, infra, mapa, templates, vault_i
+from vault_system import arquivos, arvore, conversa, estado, github_app, historico, infra, mapa, templates, vault_i
 from vault_system.estado import conectar, url_arquivo, url_commit, url_repo  # noqa: F401 - url_* também usados nos testes
 
 from . import baixar, credenciais, envio, renderizacao, sessao, sistemas
@@ -378,6 +378,73 @@ def ver_curadorias(tag: str, adm=Depends(sessao.administrador)):
     for c in lista:
         c["detalhe"] = _json(c["detalhe"], None)
     return {"curadorias": lista}
+
+
+# --- conversa com o Vault-I -----------------------------------------------------------------
+
+class NovaConversa(BaseModel):
+    escopo: str = "hub"
+    tag: str | None = None
+    nota: str | None = Field(default=None, max_length=500)
+    pergunta: str = Field(max_length=conversa.LIMITE_PERGUNTA)
+
+
+class Pergunta(BaseModel):
+    pergunta: str = Field(max_length=conversa.LIMITE_PERGUNTA)
+
+
+def _erro_conversa(e):
+    if isinstance(e, conversa.SemConfiguracao):
+        return HTTPException(409, str(e))
+    if isinstance(e, LookupError):
+        return HTTPException(404, str(e))
+    if isinstance(e, FileExistsError):
+        return HTTPException(409, str(e))
+    return HTTPException(400, str(e))
+
+
+@router.get("/conversas")
+def listar_conversas(adm=Depends(sessao.administrador)):
+    with conectar() as db:
+        return {"disponivel": bool(vault_i.configuracao(db)), "conversas": conversa.listar(db, adm["login"])}
+
+
+@router.post("/conversas", status_code=201)
+def nova_conversa(dados: NovaConversa, adm=Depends(sessao.administrador)):
+    with conectar() as db:
+        try:
+            cid = conversa.criar(db, adm["login"], dados.escopo, dados.pergunta, dados.tag, dados.nota)
+        except (conversa.SemConfiguracao, LookupError, ValueError) as e:
+            raise _erro_conversa(e) from None
+        return conversa.ler(db, cid, adm["login"])
+
+
+@router.get("/conversas/{cid}")
+def ver_conversa(cid: int, adm=Depends(sessao.administrador)):
+    with conectar() as db:
+        try:
+            return conversa.ler(db, cid, adm["login"])
+        except LookupError as e:
+            raise _erro_conversa(e) from None
+
+
+@router.post("/conversas/{cid}/mensagens", status_code=201)
+def perguntar_na_conversa(cid: int, dados: Pergunta, adm=Depends(sessao.administrador)):
+    with conectar() as db:
+        try:
+            conversa.perguntar(db, cid, adm["login"], dados.pergunta)
+        except (conversa.SemConfiguracao, LookupError, ValueError, FileExistsError) as e:
+            raise _erro_conversa(e) from None
+        return conversa.ler(db, cid, adm["login"])
+
+
+@router.delete("/conversas/{cid}", status_code=204)
+def apagar_conversa(cid: int, adm=Depends(sessao.administrador)):
+    with conectar() as db:
+        try:
+            conversa.apagar(db, cid, adm["login"])
+        except LookupError as e:
+            raise _erro_conversa(e) from None
 
 
 # --- configurações: Vault-I ---------------------------------------------------------------

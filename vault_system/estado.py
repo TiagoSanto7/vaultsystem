@@ -186,6 +186,34 @@ CREATE TABLE IF NOT EXISTS curadorias (
     detalhe TEXT);
 CREATE INDEX IF NOT EXISTS curadorias_tag ON curadorias (tag, estado);
 
+-- Conversa com o Vault-I (vault_system/conversa.py): a API grava a pergunta, o
+-- atendente do curador responde. escopo: geral, vault ou hub. Cada conversa é de
+-- quem criou. mensagens.papel: usuario ou vault-i; estado: pendente, respondendo, ok, erro.
+CREATE TABLE IF NOT EXISTS conversas (
+    id INTEGER PRIMARY KEY,
+    escopo TEXT NOT NULL,
+    tag TEXT,
+    nota TEXT,
+    titulo TEXT,
+    criado_por TEXT NOT NULL,
+    criado_em TEXT NOT NULL,
+    atualizado_em TEXT);
+CREATE INDEX IF NOT EXISTS conversas_por ON conversas (criado_por);
+CREATE TABLE IF NOT EXISTS mensagens (
+    id INTEGER PRIMARY KEY,
+    conversa_id INTEGER NOT NULL,
+    papel TEXT NOT NULL,
+    texto TEXT NOT NULL,
+    fontes TEXT,
+    estado TEXT NOT NULL,
+    erro TEXT,
+    modelo TEXT,
+    criado_em TEXT NOT NULL,
+    inicio TEXT,
+    respondido_em TEXT);
+CREATE INDEX IF NOT EXISTS mensagens_conversa ON mensagens (conversa_id, id);
+CREATE INDEX IF NOT EXISTS mensagens_estado ON mensagens (estado);
+
 -- Pedido de pull: a API registra, o curador atende (só ele tem as chaves das
 -- origens). resultado: JSON com commits, itens e ignorados, ou o erro.
 CREATE TABLE IF NOT EXISTS pulls (
