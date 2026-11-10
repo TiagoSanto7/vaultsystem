@@ -46,8 +46,11 @@ def detalhes_cli(tipo: str, nome: str, adm=Depends(sessao.administrador)):
 
 
 @router.post("/envios/{tag}", status_code=201)
-async def cadastrar_por_envio(tag: str, request: Request, modo: str, adm=Depends(sessao.administrador)):
-    return await envio.receber(request, tag, adm["login"], modo)
+async def cadastrar_por_envio(tag: str, request: Request, modo: str | None = None, origem: str | None = None,
+                             adm=Depends(sessao.administrador)):
+    """Envio pelo painel: cria o vault (com modo), soma uma origem nova a ele (com origem) ou atualiza a
+    origem de envio que já existe. Os arquivos chegam num ZIP, montado no navegador quando são soltos."""
+    return await envio.receber(request, tag, adm["login"], modo, origem)
 ORDEM_TIPOS = ["possivel_segredo", "origem_sumiu", "origem_nao_cadastrada", "link_quebrado", "link_outra_tag",
                "cabecalho", "sistema_errado", "tipo_nota_errado", "assunto_sem_documento", "documento_orfao",
                "infra_sem_servico"]
