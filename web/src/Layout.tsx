@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-do
 import { ListaSistemas } from "./api";
 import { useDados } from "./dados";
 import { iniciais } from "./formato";
+import { Protecao } from "./Protecao";
 import { Icone } from "./icones";
 import { useSessao } from "./sessao";
 import { useTema } from "./tema";
@@ -164,7 +165,7 @@ export default function Layout() {
           </div>
         </header>
         <main id="conteudo">
-          <Outlet />
+          <Protecao chave={local.pathname}><Outlet /></Protecao>
           <footer className="foot">
             <span>Vault System · Conhecimento distribuído.</span>
             <span>Horários em Cuiabá</span>

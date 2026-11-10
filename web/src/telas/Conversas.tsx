@@ -134,7 +134,12 @@ function Fio({ id, aoApagar }: { id: number; aoApagar: () => void }) {
   const pendente = !!dados?.mensagens.some((m) => m.estado === "pendente" || m.estado === "respondendo");
 
   useEffect(() => setEsperando(pendente), [pendente]);
-  useEffect(() => fim.current?.scrollIntoView({ block: "end" }), [dados?.mensagens.length, pendente]);
+  // Rola só a lista de mensagens: scrollIntoView rolaria também o painel (overflow: hidden) e a página,
+  // e a conversa sumia da vista, sobrando só o fundo.
+  useEffect(() => {
+    const lista = fim.current?.parentElement;
+    if (lista) lista.scrollTop = lista.scrollHeight;
+  }, [dados?.mensagens.length, pendente]);
 
   async function enviar(e?: FormEvent) {
     e?.preventDefault();
