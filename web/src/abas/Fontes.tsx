@@ -53,17 +53,21 @@ export default function Fontes({ s, recarregar }: { s: Sistema; recarregar: () =
           </div>
           <button className="btn" onClick={() => setAdicionar(true)} disabled={!!s.removido_em}><Icone nome="plus" />Adicionar repositório</button>
         </div>
+        <div className="grade-cartoes origens">
         {s.origens.map((o) => {
           const sit = SITUACAO[o.situacao];
           return (
-            <div key={o.nome} className="row" style={{ alignItems: "flex-start" }}>
-              <span className="sysicon"><Icone nome="git" /></span>
-              <div className="info">
-                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                  <LinkExterno href={o.url}>{repoCurto(o.repo)}</LinkExterno>
-                  <Badge tipo={sit.tipo}>{sit.texto}{o.situacao === "atrasado" && o.commits_atras ? ` · ${plural(o.commits_atras, "commit", "commits")}` : ""}</Badge>
+            <article key={o.nome} className="cartao">
+              <div className="cartao-topo" style={{ justifyContent: "flex-start" }}>
+                <span className="sysicon"><Icone nome="git" /></span>
+                <div style={{ minWidth: 0 }}>
+                  <b>{o.nome}</b>
+                  <small className="muted" style={{ display: "block" }}>ramo {o.ramo}</small>
                 </div>
-                <small>Origem <b style={{ fontWeight: 500 }}>{o.nome}</b> · ramo {o.ramo}</small>
+                <span style={{ marginLeft: "auto" }}><Badge tipo={sit.tipo}>{sit.texto}{o.situacao === "atrasado" && o.commits_atras ? ` · ${plural(o.commits_atras, "commit", "commits")}` : ""}</Badge></span>
+              </div>
+              <div className="info">
+                <small><LinkExterno href={o.url}>{repoCurto(o.repo)}</LinkExterno></small>
                 {o.leituras_antes && !o.removida_em && (
                   <small><Badge tipo="warn">Leituras alteradas</Badge> O vault é ajustado no próximo pull (já pedido).</small>
                 )}
@@ -127,9 +131,10 @@ export default function Fontes({ s, recarregar }: { s: Sistema; recarregar: () =
                   </div>
                 )}
               </div>
-            </div>
+            </article>
           );
         })}
+        </div>
       </section>
 
       <section className="panel section-gap" id="fila">
