@@ -10,7 +10,7 @@ model:
 # o Claude falhar, os itens ficam na fila para a próxima rodada.
 fallback_providers: []
 
-timezone: America/Cuiaba
+timezone: UTC
 
 # Só arquivos: nada de terminal, web, MCP ou delegação. O plugin limita os
 # caminhos à tag do lote.

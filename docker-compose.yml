@@ -36,7 +36,7 @@ services:
     image: vault-system/api:dev
     restart: unless-stopped
     environment:
-      TZ: America/Cuiaba
+      TZ: UTC
       # Tela: contas locais do hub (Vault System; a primeira vem de
       # VAULT_ADMIN_LOGIN e VAULT_ADMIN_SENHA) e, opcional, o AD. Sessão em cookie assinado. Sem
       # VAULT_SESSAO_SEGREDO a tela fica desligada; a API dos agentes segue igual.
@@ -75,7 +75,7 @@ services:
     entrypoint: ["/bin/sh", "/opt/vault-system/curador/ciclo.sh"]
     command: []
     environment:
-      TZ: America/Cuiaba
+      TZ: UTC
       VAULT_INTERVALO: ${VAULT_INTERVALO:-900}
       VAULT_LIMITE_BYTES: ${VAULT_LIMITE_BYTES:-262144}
       # Curadoria interna (opcional). Vault System: o padrão será uma chave de API

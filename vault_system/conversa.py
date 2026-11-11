@@ -112,7 +112,8 @@ def ler(db, cid, por):
 def listar(db, por, limite=50):
     return [dict(c) for c in db.execute(
         "SELECT c.*, (SELECT COUNT(*) FROM mensagens m WHERE m.conversa_id = c.id AND m.estado IN ('pendente', 'respondendo')) "
-        "AS pendentes FROM conversas c WHERE criado_por = ? ORDER BY COALESCE(atualizado_em, criado_em) DESC, id DESC LIMIT ?",
+        "AS pendentes FROM conversas c WHERE criado_por = ? "
+        "ORDER BY julianday(COALESCE(atualizado_em, criado_em)) DESC, id DESC LIMIT ?",
         (por, limite))]
 
 
@@ -188,7 +189,7 @@ def responder_uma(db):
     limite = (datetime.datetime.fromisoformat(agora) - datetime.timedelta(minutes=TEMPO_MAX_MIN)).isoformat(timespec="seconds")
     with db:
         db.execute("UPDATE mensagens SET estado = 'erro', erro = 'a resposta passou do tempo máximo', respondido_em = ? "
-                   "WHERE estado = 'respondendo' AND inicio < ?", (agora, limite))
+                   "WHERE estado = 'respondendo' AND julianday(inicio) < julianday(?)", (agora, limite))
     m = db.execute("SELECT * FROM mensagens WHERE estado = 'pendente' AND papel = 'usuario' ORDER BY id LIMIT 1").fetchone()
     if not m:
         return False

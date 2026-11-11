@@ -69,6 +69,20 @@ def test_pull_pedido_passa_na_frente_e_vault_em_curso_nao_repete(amb, tmp_path, 
     assert c.fila(amb.db) == [("lento", "pull")]  # agenda em dia: só o pull
 
 
+def test_filas_ordenam_pedidos_por_instante_com_fusos_diferentes(amb, tmp_path, monkeypatch):  # noqa: F811
+    from vault_system import vault_i
+
+    _segundo_vault(amb, tmp_path, "# Lento\n")
+    _, c, _ = _coordenador(tmp_path, monkeypatch, n=1)
+    pedidos = [("docs", "2026-11-10T20:00:00-04:00"), ("lento", "2026-11-10T23:59:00+00:00")]
+    with amb.db:
+        amb.db.executemany("INSERT INTO pulls (tag, pedido_em, pedido_por) VALUES (?, ?, 't')", pedidos)
+        amb.db.executemany("INSERT INTO curadorias (tag, pedido_em, via) VALUES (?, ?, 'tela')", pedidos)
+
+    assert c.fila(amb.db) == [("lento", "pull"), ("docs", "pull")]
+    assert vault_i.pendentes(amb.db) == ["lento", "docs"]
+
+
 def test_trabalhador_que_caiu_nao_fecha_a_rodada_dos_outros(amb):  # noqa: F811
     from vault_system import historico
     with amb.db:

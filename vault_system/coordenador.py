@@ -60,7 +60,7 @@ class Coordenador:
                 vistos.add(tag)
                 saida.append((tag, motivo))
 
-        for l in db.execute("SELECT p.tag, MIN(p.pedido_em) AS em FROM pulls p JOIN sistemas s ON s.tag = p.tag "
+        for l in db.execute("SELECT p.tag, MIN(julianday(p.pedido_em)) AS em FROM pulls p JOIN sistemas s ON s.tag = p.tag "
                             "WHERE p.atendido_em IS NULL AND s.removido_em IS NULL GROUP BY p.tag ORDER BY em"):
             por(l["tag"], "pull")
         for tag in vault_i.pendentes(db):  # curadoria do Vault-I pedida: passa na frente, como um pull
@@ -114,7 +114,7 @@ class Coordenador:
             import datetime
             proxima = min(self.ultima.get(t, 0) for t in ativos) + historico.intervalo()
             historico._definir(db, "proxima_rodada", datetime.datetime.fromtimestamp(
-                max(proxima, _agora()), estado.FUSO).isoformat(timespec="seconds"))
+                max(proxima, _agora()), datetime.timezone.utc).isoformat(timespec="seconds"))
 
     # --- uma volta -----------------------------------------------------------------
     def passo(self, db):
