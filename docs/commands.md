@@ -27,6 +27,7 @@ Qualquer mudança em um comando começa aqui.
 | `vs login [url=<hub>]` | Conecta a um hub com o **token de conexão** da aba Tokens do painel. O token é pedido sem aparecer na tela e fica guardado só para o seu usuário (`~/.config/vaultsystem/config.json`). |
 | `vs logout [agent=<agente>]` | Apaga o token do hub (ou, com `agent=`, a credencial do agente). |
 | `vs login agent=claude` | Configura o agente do `vs sync --curate`: pede o token do `claude setup-token` (Enter vazio usa o login que o Claude Code já tem na máquina). |
+| `vs login agent=codex` | Configura o Codex CLI para o `vs sync --curate`. Reaproveita a sessão de `codex login` ou pede uma chave de API da OpenAI. |
 | `vs whoami` | Mostra o hub, o token e o dono do workspace. |
 
 ### Pasta do projeto
@@ -51,7 +52,7 @@ Parâmetros e flags do `init` e do `sync`:
 | `file=<zip>` | `sync vault=` / `sync template=` | Envia um ZIP pronto no lugar da pasta. Substitui o envio principal do vault; num `template=`, o ZIP já vem com uma pasta por template. |
 | `--dry-run` | `init`, `sync`, `add template` | Só mostra o que aconteceria. As notas aparecem marcadas com `*`. |
 | `--curate` | `sync` | Antes de enviar, abre o agente da máquina, que cura a pasta seguindo o `AGENTS.md` (escreve e atualiza as notas em `docs/vs/`). Depois o `vs` confere as notas e envia. Com `--dry-run`, só avisa. |
-| `agent=<agente>` | `sync --curate` | Qual agente usar. Padrão: o do `vs login agent=`. Hoje: `claude`. Em seguida: `codex`, `gemini`, `cursor` e `opencode`. |
+| `agent=<agente>` | `sync --curate` | Use `claude` ou `codex`. Por padrão, usa o agente do `vs login agent=` ou Claude Code se nenhum foi configurado. |
 | `--force` | `init`, `add template` | Sobrescreve arquivos que já existem. |
 
 Como pastas e vaults se relacionam:
@@ -86,9 +87,16 @@ Como pastas e vaults se relacionam:
 
 | Onde | Como | Quem escreve as notas |
 | --- | --- | --- |
-| Na sua máquina | `vs sync --curate` | O agente local (hoje, o Claude Code), com a sua conta, seguindo o `AGENTS.md`. Só lê e edita arquivos da pasta; não roda comandos. |
+| Na sua máquina | `vs sync --curate` | Claude Code ou Codex CLI, com a sua conta, seguindo o `AGENTS.md`. O agente lê as fontes e escreve as notas sem executar comandos. |
 | No hub | Botão **Curar com Vault-I** no vault | O Vault-I, com a chave de API ou o token configurado em Configurações. |
 | À mão ou pelo seu agente | Escrevendo em `docs/vs/` | Você ou o agente da sua sessão, seguindo o `AGENTS.md`. |
+
+Com o Codex CLI instalado, rode `codex login` para entrar com a conta ChatGPT e
+`vs login agent=codex` para escolhê-lo. Uma chave da OpenAI também pode ser
+informada no prompt do `vs` ou pela variável `VS_AGENT_TOKEN` ao configurar.
+O `vs` configura o MCP local para cada execução e aplica as alterações em
+`docs/vs/` após a curadoria terminar com sucesso. Fluxo validado com o Codex CLI
+`0.166.0`.
 
 ## Notas escritas pelo agente
 

@@ -49,7 +49,7 @@ O **hub** é o servidor do seu workspace: guarda os vaults, mostra as notas e em
 
 **Várias pastas, um vault.** Cada pasta que envia é uma origem do vault e só troca o que é dela. `vs sync vault=<nome>` soma a pasta atual a um vault (e cria o vault se ele não existir). `vs sync template=design name=instagram` soma a pasta ao `template-design` como o template `design:instagram`; sem `name=`, vale o nome da pasta. `file=<zip>` manda um ZIP pronto no lugar da pasta.
 
-**Curadoria (opcional).** Sem agente na sessão, `vs sync --curate` abre o agente da sua máquina (hoje, o Claude Code; configure com `vs login agent=claude`), que escreve as notas seguindo o `AGENTS.md` antes do envio. No hub, o Vault-I faz o mesmo com uma chave de API ou o token do `claude setup-token`, configurados em Configurações, e só roda pelo botão **Curar com Vault-I** do vault. Nenhuma curadoria roda sozinha.
+**Curadoria (opcional).** Sem agente na sessão, `vs sync --curate` abre o agente da sua máquina para escrever as notas seguindo o `AGENTS.md` antes do envio. Escolha com `vs login agent=claude` ou `vs login agent=codex`. No hub, o Vault-I faz o mesmo com uma chave de API ou o token do `claude setup-token`, configurados em Configurações, e só roda pelo botão **Curar com Vault-I** do vault. Nenhuma curadoria roda sozinha.
 
 ### Comandos
 
@@ -59,7 +59,7 @@ Os comandos são sempre em inglês e seguem um padrão só: `vs <verbo> [objeto]
 | --- | --- |
 | `vs login [url=<hub>]` | Conecta a um hub com o token de conexão. |
 | `vs logout` / `vs whoami` | Apaga o token guardado / mostra o hub, o token e o dono. |
-| `vs login agent=claude` | Configura o agente do `vs sync --curate`. |
+| `vs login agent=claude\|codex` | Configura o agente do `vs sync --curate`. |
 | `vs init` | Prepara a pasta (`AGENTS.md`, `.vs`, `VS.lock`) sem ligar a um vault. |
 | `vs init vault=<nome>` | Prepara e liga a pasta a um vault (padrão `mode=documented`). |
 | `vs init template=<tipo>` | Prepara e liga a `template-<tipo>`; cada subpasta é um template (padrão `mode=literal`). |

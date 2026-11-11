@@ -474,7 +474,7 @@ def test_curate_local_roda_o_agente_na_pasta(tmp_path, monkeypatch):
     r = _vs(["sync", "vault=proj", "--curate"], pasta, env)
     assert r.returncode == 1 and "AGENTS.md" in r.stderr
     assert _vs(["login", "agent=claude"], pasta, env).returncode == 0
-    assert _vs(["login", "agent=codex"], pasta, env).returncode == 1  # ainda não suportado
+    assert _vs(["login", "agent=gemini"], pasta, env).returncode == 1  # ainda não suportado
     assert _vs(["init", "vault=proj"], pasta, env).returncode == 0
     # --dry-run não roda o agente
     assert _vs(["sync", "--curate", "--dry-run"], pasta, env).returncode == 0

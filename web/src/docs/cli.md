@@ -122,18 +122,19 @@ vs add template design:default dir=interface --dry-run
 
 ## Curadoria
 
-**Na sua máquina.** Sem agente na sessão, `vs sync --curate` abre o agente da sua
-máquina, que escreve as notas seguindo o `AGENTS.md` antes do envio. Hoje o agente é
-o Claude Code; configure uma vez:
+**Na sua máquina.** Sem agente na sessão, `vs sync --curate` abre o Claude Code
+ou o Codex CLI para escrever as notas seguindo o `AGENTS.md` antes do envio.
+Configure uma vez o agente que usa.
 
 ```
-vs login agent=claude
+vs login agent=codex
 vs sync --curate
 ```
 
-O `vs login agent=claude` pede o token do `claude setup-token` (Enter vazio usa o
-login que o Claude Code já tem). O agente só lê e edita arquivos da pasta e não roda
-comandos. Codex, Gemini, Cursor e opencode vêm em seguida.
+O `vs login agent=codex` usa a sessão de `codex login` ou pede uma chave de API
+da OpenAI. Para Claude Code, use `vs login agent=claude` com o token de
+`claude setup-token` ou pressione Enter para usar a sessão existente.
+O agente lê as fontes e escreve notas em `docs/vs/` com o shell desligado.
 
 **No hub.** O Vault-I escreve notas com a chave de API ou o token configurado em
 **Configurações**, e só roda pelo botão **Curar com Vault-I** de um vault. Sem chave,
