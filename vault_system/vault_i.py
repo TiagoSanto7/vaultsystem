@@ -156,7 +156,7 @@ def pedir(db, tag, por, via):
 
 def pendentes(db):
     return [l["tag"] for l in db.execute(
-        "SELECT c.tag, MIN(c.pedido_em) AS em FROM curadorias c JOIN sistemas s ON s.tag = c.tag "
+        "SELECT c.tag, MIN(julianday(c.pedido_em)) AS em FROM curadorias c JOIN sistemas s ON s.tag = c.tag "
         "WHERE c.estado = 'pedida' AND s.removido_em IS NULL GROUP BY c.tag ORDER BY em")]
 
 

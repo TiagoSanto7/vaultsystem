@@ -10,7 +10,6 @@ import os
 import re
 import sqlite3
 
-FUSO = datetime.timezone(datetime.timedelta(hours=-4))  # Cuiabá (America/Cuiaba, sem horário de verão; )
 TAG = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 
 ESQUEMA = """
@@ -253,7 +252,7 @@ def dir_estado():
 
 
 def agora():
-    return datetime.datetime.now(FUSO).isoformat(timespec="seconds")
+    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
 
 
 # Colunas acrescentadas depois da criação da tabela (o CREATE TABLE IF NOT

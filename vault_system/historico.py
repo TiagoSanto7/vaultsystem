@@ -93,7 +93,7 @@ def fechar_rodada(db, resultado, intervalo=None):
     _definir(db, _chave("lote"), None)
     if intervalo:
         import datetime
-        proxima = datetime.datetime.now(estado.FUSO) + datetime.timedelta(seconds=intervalo)
+        proxima = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=intervalo)
         _definir(db, "proxima_rodada", proxima.isoformat(timespec="seconds"))
 
 
