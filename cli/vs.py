@@ -14,6 +14,7 @@ Commands:
   Conexão
     vs login [url=<hub>]                    conecta a um hub com o token de conexão (pedido sem aparecer na tela)
     vs login agent=claude                   configura o agente do vs sync --curate (token do claude setup-token)
+    vs login agent=codex                    usa o login do Codex CLI ou uma chave da OpenAI
     vs logout [agent=<agente>]              apaga o token do hub (ou a credencial do agente)
     vs whoami                               mostra o hub, o token e o dono do workspace
 
@@ -30,7 +31,7 @@ Commands:
         file=<zip>                          envia um ZIP pronto no lugar da pasta
         --dry-run                           só lista o que iria
         --curate                            antes de enviar, o agente da máquina cura a pasta seguindo o AGENTS.md
-        agent=<agente>                      o agente do --curate (padrão: o do vs login agent=); hoje: claude
+        agent=<agente>                      claude ou codex (padrão: o do vs login agent=)
 
   Templates
     vs list templates [type=<tipo>]         lista os templates do hub
@@ -52,6 +53,7 @@ Todo comando aceita --json (saída para scripts e agentes). dir=<pasta> roda o c
 pasta. VS_TOKEN e VS_URL no ambiente têm prioridade sobre ~/.config/vaultsystem/config.json.
 """
 import datetime
+import fnmatch
 import getpass
 import io
 import json
@@ -62,6 +64,8 @@ import shutil
 import stat
 import subprocess
 import sys
+import tempfile
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -69,7 +73,7 @@ import zipfile
 
 os.environ.setdefault("VS_CLI", "1")  # a CLI é sempre o vs do Vault System
 
-VERSAO = "0.2.0"
+VERSAO = "0.3.0"
 REGISTRO = os.path.join(".vaultsystem", "templates.json")
 INIT_PADRAO = """# AGENTS.md
 
@@ -247,7 +251,7 @@ def saida(obj, como_json, texto):
 def cmd_login(pos, params, flags):
     if params.get("agent"):
         if set(params) - {"agent"}:
-            raise Erro(f"uso: {cli()} login agent=<claude>")
+            raise Erro(f"uso: {cli()} login agent=<claude|codex>")
         return _login_agente(params["agent"], flags)
     c = ler_config()
     url = (params.get("url") or url_base(c)).rstrip("/")
@@ -338,8 +342,108 @@ class AgenteClaude:
         return True, texto
 
 
-AGENTES = {a.nome: a for a in (AgenteClaude(),)}
-EM_BREVE = {"codex": "Codex CLI", "gemini": "Gemini CLI", "cursor": "Cursor CLI", "opencode": "opencode"}
+class AgenteCodex:
+    nome = "codex"
+    rotulo = "Codex CLI"
+    binario = "codex"
+    instalar = "npm install -g @openai/codex"
+    credencial = "chave de API da OpenAI"
+    login_ausente = "Codex CLI sem login: rode codex login ou configure uma chave com vs login agent=codex"
+    config_auth = 'cli_auth_credentials_store="auto"'
+
+    def valida_token(self, token):
+        if not re.fullmatch(r"sk-[A-Za-z0-9_-]+", token):
+            raise Erro("informe uma chave de API da OpenAI (começa com sk-)")
+
+    def ambiente(self, token):
+        chaves = {"PATH", "HOME", "USER", "LOGNAME", "USERPROFILE", "APPDATA", "LOCALAPPDATA",
+                  "SYSTEMROOT", "WINDIR", "PATHEXT", "COMSPEC", "TEMP", "TMP", "TMPDIR",
+                  "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_RUNTIME_DIR", "CODEX_HOME",
+                  "LANG", "LC_ALL", "HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "SSL_CERT_FILE", "SSL_CERT_DIR",
+                  "CODEX_CA_CERTIFICATE"}
+        env = {k: v for k, v in os.environ.items() if k.upper() in chaves}
+        if token:
+            env["CODEX_API_KEY"] = token
+        return env
+
+    def autenticado(self, exe):
+        try:
+            r = subprocess.run([exe, "-c", self.config_auth, "login", "status"],
+                               env=self.ambiente(None), stdin=subprocess.DEVNULL,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15)
+        except subprocess.TimeoutExpired:
+            raise Erro("o Codex CLI demorou para verificar o login") from None
+        return r.returncode == 0
+
+    def executar(self, exe, raiz, token, timeout, antes):
+        if not token and not self.autenticado(exe):
+            raise Erro(self.login_ausente)
+        with tempfile.TemporaryDirectory(prefix="vs-curate-") as trabalho:
+            plano = os.path.join(trabalho, "notas.jsonl")
+            args = [os.path.abspath(__file__), "--curadoria-mcp", raiz, plano]
+            comando = [exe, "-a", "never", "exec", "--json", "--ephemeral", "--skip-git-repo-check",
+                       "--ignore-user-config", "--ignore-rules", "--strict-config",
+                       "--sandbox", "workspace-write", "-c", self.config_auth]
+            for chave, valor in {
+                "features.shell_tool": False, "features.shell_snapshot": False, "features.hooks": False,
+                "features.apps": False, "features.plugins": False, "features.multi_agent": False,
+                "features.view_image": False, "features.image_generation": False, "features.goals": False,
+                "features.skill_mcp_dependency_install": False,
+                "web_search": "disabled", "mcp_servers.vs_curadoria.command": sys.executable,
+                "mcp_servers.vs_curadoria.args": args, "mcp_servers.vs_curadoria.required": True,
+                "mcp_servers.vs_curadoria.default_tools_approval_mode": "approve",
+                "mcp_servers.vs_curadoria.enabled_tools": list(FERRAMENTAS_CURADORIA),
+            }.items():
+                comando.extend(("-c", f"{chave}={json.dumps(valor, ensure_ascii=False)}"))
+            pedido = PEDIDO_CURADORIA + (
+                "\nUse exclusivamente as ferramentas MCP de vs_curadoria para ler o AGENTS.md e as fontes. "
+                "Use propor_nota para cada alteração, com conteúdo null para remover uma nota. "
+                "O vs aplica as propostas ao final da curadoria. "
+                "Ao terminar, responda apenas no formato RESUMO: 0 criadas, 0 atualizadas, 0 apagadas "
+                "(substitua pelos totais reais).\n")
+            r = subprocess.run([*comando, "-"], input=pedido, capture_output=True, text=True, encoding="utf-8",
+                               errors="replace", cwd=trabalho, env=self.ambiente(token), timeout=timeout)
+            texto = self.resultado(r)
+            if not os.path.isfile(plano):
+                raise Erro("o Codex CLI terminou sem ler o AGENTS.md pelo MCP de curadoria")
+            try:
+                with open(plano, encoding="utf-8") as f:
+                    propostas = dict(json.loads(linha) for linha in f)
+            except (TypeError, ValueError):
+                raise Erro("o MCP do Codex CLI devolveu propostas inválidas") from None
+            _aplicar_notas_codex(raiz, propostas, antes)
+            return texto
+
+    def resultado(self, processo):
+        tipos, mensagem = set(), ""
+        for linha in processo.stdout.splitlines():
+            try:
+                e = json.loads(linha)
+            except ValueError:
+                continue
+            if not isinstance(e, dict):
+                continue
+            tipo = e.get("type")
+            if isinstance(tipo, str):
+                tipos.add(tipo)
+            item = e.get("item")
+            if isinstance(item, dict) and tipo == "item.completed" and item.get("type") == "agent_message":
+                texto = item.get("text")
+                mensagem = texto if isinstance(texto, str) else ""
+        if processo.returncode or "turn.completed" not in tipos or tipos & {"turn.failed", "error"}:
+            diagnostico = (processo.stderr + "\n" + processo.stdout).lower()
+            if any(t in diagnostico for t in ("401", "unauthorized", "authentication", "not logged in",
+                                             "invalid api key", "token_expired", "refresh token")):
+                raise Erro("autenticação do Codex recusada: renove o login com codex login ou configure outra chave")
+            raise Erro("a curadoria com o Codex CLI falhou; confira o login e a versão instalada")
+        if not re.fullmatch(r"RESUMO:\s*\d+ (?:notas? )?criadas?,\s*\d+ (?:notas? )?atualizadas?,\s*"
+                            r"\d+ (?:notas? )?apagadas?\.?", mensagem.strip()):
+            raise Erro("o Codex CLI terminou sem confirmar a curadoria")
+        return mensagem
+
+
+AGENTES = {a.nome: a for a in (AgenteClaude(), AgenteCodex())}
+EM_BREVE = {"gemini": "Gemini CLI", "cursor": "Cursor CLI", "opencode": "opencode"}
 
 
 def _agente(nome):
@@ -352,15 +456,26 @@ def _agente(nome):
 
 def _login_agente(nome, flags):
     ag = _agente(nome)
-    token = os.environ.get("VS_AGENT_TOKEN") or getpass.getpass(
-        f"{ag.credencial} (Enter vazio usa o login que o {ag.rotulo} já tem nesta máquina): ").strip()
+    exe = shutil.which(ag.binario)
+    token = os.environ.get("VS_AGENT_TOKEN")
+    if nome == "codex":
+        if not exe:
+            raise Erro(f"o {ag.rotulo} não está instalado. Instale com: {ag.instalar}")
+        if not token and not ag.autenticado(exe):
+            if sys.stdin.isatty():
+                token = getpass.getpass(f"{ag.credencial} (Enter vazio para sair): ").strip()
+            if not token:
+                raise Erro(ag.login_ausente)
+    else:
+        token = token or getpass.getpass(
+            f"{ag.credencial} (Enter vazio usa o login que o {ag.rotulo} já tem nesta máquina): ").strip()
     if token:
         ag.valida_token(token)
     c = ler_config()
     c.setdefault("agents", {})[ag.nome] = {"token": token or None}
     c["agent"] = ag.nome
     gravar_config(c)
-    instalado = shutil.which(ag.binario) is not None
+    instalado = exe is not None
     saida({"agent": ag.nome, "token": bool(token), "installed": instalado}, "json" in flags,
           f"Agente {ag.rotulo} configurado para o vs sync --curate"
           + (" (com token)." if token else " (usando o login que ele já tem).")
@@ -381,14 +496,20 @@ def _curar_local(raiz, nome, flags):
         print(f"Curando com o {ag.rotulo}... (pode levar alguns minutos)", file=sys.stderr)
     antes = _fotografia_notas(raiz)
     try:
-        r = subprocess.run(ag.comando(exe), input=PEDIDO_CURADORIA, capture_output=True, text=True,
-                           encoding="utf-8", errors="replace", cwd=raiz, env=ag.ambiente(token),
-                           timeout=int(os.environ.get("VS_CURATE_TIMEOUT", "1800")))
+        timeout = int(os.environ.get("VS_CURATE_TIMEOUT", "1800"))
+        if nome == "codex":
+            texto = ag.executar(exe, raiz, token, timeout, antes)
+        else:
+            r = subprocess.run(ag.comando(exe), input=PEDIDO_CURADORIA, capture_output=True, text=True,
+                               encoding="utf-8", errors="replace", cwd=raiz, env=ag.ambiente(token), timeout=timeout)
+            ok, texto = ag.resultado(r.stdout or r.stderr)
+            if not ok or r.returncode:
+                erro = texto if not ok else f"código de saída {r.returncode}"
+                raise Erro(f"a curadoria com o {ag.rotulo} falhou: {erro}")
     except subprocess.TimeoutExpired:
         raise Erro(f"o {ag.rotulo} passou do tempo máximo; nada foi enviado") from None
-    ok, texto = ag.resultado(r.stdout or r.stderr)
-    if not ok:
-        raise Erro(f"a curadoria com o {ag.rotulo} falhou: {texto}; nada foi enviado")
+    except Erro as e:
+        raise Erro(f"{e}; nada foi enviado") from None
     depois = _fotografia_notas(raiz)
     return {"agent": ag.nome, "resumo": texto.strip()[-300:],
             "criadas": sorted(set(depois) - set(antes)),
@@ -674,8 +795,209 @@ def _e_nota(caminho):
             inicio = f.read(4096)
     except (OSError, UnicodeDecodeError):
         return False
-    m = re.match(r"^﻿?---\r?\n(.*?)\r?\n---", inicio, re.S)
+    return _cabecalho_de_nota(inicio)
+
+
+def _cabecalho_de_nota(inicio):
+    m = re.match(r"^\ufeff?---\r?\n(.*?)\r?\n---", inicio, re.S)
     return bool(m and re.search(r"(?m)^vs:\s*[a-z]+\s*(#.*)?$", m.group(1)))
+
+
+FERRAMENTAS_CURADORIA = {
+    "listar_fontes": ("Lista caminhos do projeto. Use um padrão glob e o início retornado para paginar.",
+                      {"padrao": {"type": "string"}, "inicio": {"type": "integer", "minimum": 0}}, []),
+    "ler_fonte": ("Lê texto de um caminho listado. Use o início retornado para continuar a leitura.",
+                  {"caminho": {"type": "string"}, "inicio": {"type": "integer", "minimum": 0}}, ["caminho"]),
+    "propor_nota": ("Cria ou atualiza uma nota Markdown em docs/vs/. Use conteúdo null para removê-la.",
+                    {"caminho": {"type": "string"}, "conteudo": {"type": ["string", "null"]}}, ["caminho", "conteudo"]),
+}
+LIMITE_FONTE_CURADORIA = 256 * 1024
+SEGREDO_CURADORIA = re.compile(
+    r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY(?: BLOCK)?-----|"
+    r"\b(?:sk-[A-Za-z0-9_-]{20,}|vs_[A-Za-z0-9_-]{30,}|gh[pousr]_[A-Za-z0-9]{36,}|"
+    r"github_pat_[A-Za-z0-9_]{22,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35})\b"
+)
+
+
+def _fonte_curadoria(rel):
+    partes = rel.casefold().split("/")
+    nome = partes[-1]
+    return not (set(partes) & {".ssh", ".aws", ".codex", ".agents", ".claude"} or nome in {
+        ".netrc", ".npmrc", ".pypirc", ".pgpass", ".htpasswd", "id_rsa", "id_ed25519",
+        "credentials", "credentials.json", "secrets.json", "secrets.yaml", "secrets.yml", "terraform.tfstate",
+    } or nome.endswith((".pem", ".key", ".p12", ".pfx", ".jks", ".ppk", ".tfvars", ".tfstate.backup")))
+
+
+def _nota_codex(raiz, rel, conteudo):
+    if not isinstance(rel, str) or not rel.startswith("docs/vs/") or not rel.lower().endswith(".md"):
+        raise Erro("somente notas Markdown em docs/vs/ podem ser alteradas")
+    caminho = _alvo(raiz, _seguro(rel))
+    if conteudo is None:
+        return caminho, None
+    if not isinstance(conteudo, str) or not _cabecalho_de_nota(conteudo[:4096]):
+        raise Erro("a nota precisa começar com um cabeçalho Markdown com vs:")
+    dados = conteudo.encode("utf-8")
+    if len(dados) > LIMITE_FONTE_CURADORIA or SEGREDO_CURADORIA.search(conteudo):
+        raise Erro("nota grande demais ou com possível credencial")
+    return caminho, dados
+
+
+def _aplicar_notas_codex(raiz, propostas, antes):
+    alteracoes = []
+    nomes = set()
+    for rel, conteudo in propostas.items():
+        caminho, dados = _nota_codex(raiz, rel, conteudo)
+        nome = unicodedata.normalize("NFC", rel).casefold()
+        if nome in nomes:
+            raise Erro(f"mais de uma proposta para o mesmo caminho: {rel}")
+        nomes.add(nome)
+        original = antes.get(rel)
+        existe = os.path.lexists(caminho)
+        if existe != (original is not None) or (existe and (
+            not stat.S_ISREG(os.lstat(caminho).st_mode) or not _igual(caminho, original)
+        )):
+            raise Erro(f"a nota mudou durante a curadoria ou o destino está ocupado: {rel}")
+        if dados != original:
+            alteracoes.append((rel, dados))
+
+    for rel, _ in alteracoes:
+        pasta = posixpath.dirname(rel)
+        while pasta != "docs/vs":
+            if unicodedata.normalize("NFC", pasta).casefold() in nomes:
+                raise Erro(f"uma proposta usa outra nota como pasta: {rel}")
+            pasta = posixpath.dirname(pasta)
+        pasta = os.path.dirname(_alvo(raiz, rel))
+        while not os.path.isdir(pasta):
+            if os.path.lexists(pasta):
+                raise Erro(f"o caminho da nota contém um arquivo no lugar de uma pasta: {rel}")
+            pasta = os.path.dirname(pasta)
+
+    for rel, dados in alteracoes:
+        caminho = _alvo(raiz, rel)
+        if dados is None:
+            os.unlink(caminho)
+            continue
+        pasta = os.path.dirname(caminho)
+        os.makedirs(pasta, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=pasta)
+        try:
+            with os.fdopen(fd, "wb") as f:
+                f.write(dados)
+            if rel in antes:
+                os.chmod(tmp, stat.S_IMODE(os.stat(caminho).st_mode))
+            os.replace(tmp, caminho)
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+
+
+class CuradoriaMCP:
+    """Servidor stdio iniciado pelo Codex, limitado ao catálogo do projeto e a propostas de notas."""
+
+    def __init__(self, raiz, plano):
+        self.raiz = raiz
+        self.plano = plano
+        self.fontes = {n for n in _arquivos_do_projeto(raiz) if _fonte_curadoria(n)}
+        self.fontes.add("AGENTS.md")
+        self.propostas = {}
+        self.bytes_plano = 0
+        self.leu_protocolo = False
+
+    def listar_fontes(self, padrao="*", inicio=0):
+        if type(inicio) is not int or inicio < 0 or not isinstance(padrao, str):
+            raise Erro("início ou padrão inválido")
+        nomes = (self.fontes | self.propostas.keys()) - {n for n, c in self.propostas.items() if c is None}
+        filtrados = sorted(n for n in nomes if fnmatch.fnmatchcase(n, padrao))
+        fim = inicio + 100
+        return {"caminhos": filtrados[inicio:fim], "proximo_inicio": fim if fim < len(filtrados) else None}
+
+    def ler_fonte(self, caminho, inicio=0):
+        if type(inicio) is not int or inicio < 0 or not isinstance(caminho, str):
+            raise Erro("início ou caminho inválido")
+        if caminho in self.propostas:
+            texto = self.propostas[caminho]
+            if texto is None:
+                raise Erro("nota marcada para remoção")
+        else:
+            if caminho not in self.fontes:
+                raise Erro("caminho fora do catálogo")
+            fonte = _alvo(self.raiz, _seguro(caminho))
+            if not stat.S_ISREG(os.lstat(fonte).st_mode):
+                raise Erro("somente arquivos de texto regulares podem ser lidos")
+            with open(fonte, "rb") as f:
+                dados = f.read(LIMITE_FONTE_CURADORIA + 1)
+            if len(dados) > LIMITE_FONTE_CURADORIA or b"\x00" in dados:
+                raise Erro("arquivo binário ou grande demais para a curadoria")
+            texto = dados.decode("utf-8")
+            if SEGREDO_CURADORIA.search(texto):
+                raise Erro("possível credencial no arquivo")
+        if caminho == "AGENTS.md" and inicio == 0 and not self.leu_protocolo:
+            with open(self.plano, "ab"):
+                pass
+            self.leu_protocolo = True
+        fim = inicio + 12000
+        return {"texto": texto[inicio:fim], "proximo_inicio": fim if fim < len(texto) else None}
+
+    def propor_nota(self, caminho, conteudo):
+        if not self.leu_protocolo:
+            raise Erro("leia o AGENTS.md antes de propor notas")
+        alvo, _ = _nota_codex(self.raiz, caminho, conteudo)
+        if os.path.lexists(alvo) and (caminho not in self.fontes or not stat.S_ISREG(os.lstat(alvo).st_mode)
+                                     or not _e_nota(alvo)):
+            raise Erro("o destino está ocupado por um arquivo que não é uma nota do catálogo")
+        linha = json.dumps((caminho, conteudo), ensure_ascii=False).encode("utf-8") + b"\n"
+        if self.bytes_plano + len(linha) > LIMITE_PACOTE:
+            raise Erro("as propostas ultrapassam o limite da curadoria")
+        with open(self.plano, "ab") as f:
+            f.write(linha)
+        self.bytes_plano += len(linha)
+        self.propostas[caminho] = conteudo
+        return {"proposta": caminho}
+
+    def responder(self, metodo, params):
+        if metodo == "initialize":
+            versao = params.get("protocolVersion")
+            return {"protocolVersion": versao if versao in {"2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25"}
+                    else "2025-11-25", "capabilities": {"tools": {}},
+                    "serverInfo": {"name": "vault-system-curadoria", "version": VERSAO}}
+        if metodo == "ping":
+            return {}
+        if metodo == "tools/list":
+            return {"tools": [{"name": n, "description": d, "inputSchema": {
+                "type": "object", "properties": p, "required": r, "additionalProperties": False,
+            }} for n, (d, p, r) in FERRAMENTAS_CURADORIA.items()]}
+        if metodo == "tools/call":
+            nome = params.get("name")
+            try:
+                if nome not in FERRAMENTAS_CURADORIA:
+                    raise Erro("ferramenta não disponível")
+                resultado = getattr(self, nome)(**(params.get("arguments") or {}))
+                return {"content": [{"type": "text", "text": json.dumps(resultado, ensure_ascii=False)}]}
+            except (OSError, ValueError, TypeError):
+                mensagem = "argumentos inválidos ou arquivo indisponível"
+            except Erro as e:
+                mensagem = str(e)
+            return {"content": [{"type": "text", "text": mensagem}], "isError": True}
+        raise KeyError(metodo)
+
+
+def _servir_curadoria_mcp(raiz, plano):
+    servidor = CuradoriaMCP(raiz, plano)
+    for linha in sys.stdin.buffer:
+        try:
+            pedido = json.loads(linha)
+        except ValueError:
+            print('{"jsonrpc":"2.0","id":null,"error":{"code":-32700,"message":"Parse error"}}', flush=True)
+            continue
+        if not isinstance(pedido, dict) or "id" not in pedido:
+            continue
+        resposta = {"jsonrpc": "2.0", "id": pedido["id"]}
+        try:
+            resposta["result"] = servidor.responder(pedido.get("method"), pedido.get("params") or {})
+        except KeyError:
+            resposta["error"] = {"code": -32601, "message": "Method not found"}
+        print(json.dumps(resposta), flush=True)
+    return 0
 
 
 def _enviar(tag, pacote, modo, curar=False, origem=None):
@@ -1110,6 +1432,8 @@ def main(argv=None):
     if nome.startswith(("vs", "vaultsystem")):
         os.environ.setdefault("VS_CLI", "1")  # instalada como vs (ou vs.py): é a CLI do Vault System
     argv = sys.argv[1:] if argv is None else argv
+    if len(argv) == 3 and argv[0] == "--curadoria-mcp":
+        return _servir_curadoria_mcp(argv[1], argv[2])
     if nome.startswith("vaultsystem") and not argv:
         argv = ["welcome"]
     if not argv or argv[0] in ("-h", "--help"):
