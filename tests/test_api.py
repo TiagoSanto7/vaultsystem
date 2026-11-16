@@ -57,6 +57,22 @@ def test_revogada_e_hash(api, tmp_path):
     assert cliente.get("/v1/sistemas/a/acesso", headers=cab(chave)).status_code == 401
 
 
+def test_ultimo_uso_respeita_um_minuto_com_data_antiga(api, monkeypatch):
+    cliente, cred = api
+    chave = cred.criar("leitor", ["a"], [])
+    usado_em = "2026-11-10T20:00:00-04:00"
+    with cred.conectar() as db:
+        db.execute("UPDATE credenciais SET usado_em = ? WHERE nome = 'leitor'", (usado_em,))
+
+    monkeypatch.setattr(cred, "agora", lambda: "2026-11-11T00:01:00+00:00")
+    assert cliente.get("/v1/sistemas/a/acesso", headers=cab(chave)).status_code == 200
+    assert cred.listar()[0]["usado_em"] == usado_em
+
+    monkeypatch.setattr(cred, "agora", lambda: "2026-11-11T00:01:01+00:00")
+    assert cliente.get("/v1/sistemas/a/acesso", headers=cab(chave)).status_code == 200
+    assert cred.listar()[0]["usado_em"] == "2026-11-11T00:01:01+00:00"
+
+
 CADASTRO = {"tag": "sistema-a", "perfil": "documentos", "repo": "git@github.com:minha-org/origem.git"}
 
 

@@ -168,7 +168,6 @@ export default function Layout() {
           <Protecao chave={local.pathname}><Outlet /></Protecao>
           <footer className="foot">
             <span>Vault System · Conhecimento distribuído.</span>
-            <span>Horários em Cuiabá</span>
           </footer>
         </main>
       </div>

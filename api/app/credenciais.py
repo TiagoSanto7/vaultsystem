@@ -68,7 +68,8 @@ def _marcar_uso(db, nome):
     """Último uso (RF10), gravado no máximo uma vez por minuto por credencial."""
     agora_ = agora()
     antes = (datetime.datetime.fromisoformat(agora_) - datetime.timedelta(minutes=1)).isoformat(timespec="seconds")
-    db.execute("UPDATE credenciais SET usado_em = ? WHERE nome = ? AND (usado_em IS NULL OR usado_em < ?)",
+    db.execute("UPDATE credenciais SET usado_em = ? WHERE nome = ? "
+               "AND (usado_em IS NULL OR julianday(usado_em) < julianday(?))",
                (agora_, nome, antes))
 
 

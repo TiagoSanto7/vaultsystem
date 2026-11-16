@@ -84,7 +84,7 @@ def test_fila_vira_notas_com_cabecalho_do_codigo(amb):
     # O curador escreveu sistema e criado_em errados; o código corrigiu.
     assert cab["sistema"] == "docs" and cab["tipo_nota"] == "documento"
     assert cab["origens"] == ["docs/a.md"] and cab["commit_origem"] == c1
-    assert cab["criado_em"] != "1999" and cab["criado_em"].endswith("-04:00")
+    assert cab["criado_em"] != "1999" and cab["criado_em"].endswith("+00:00")
     assert cab["origem_tipo"] == "processo" and cab["origem_responsavel"] == "Ana"
     assert nota(amb, "documentos/docs/c.txt.md")[0]["origens"] == ["docs/c.txt"]
     geral = nota(amb, "assuntos/geral.md")[0]

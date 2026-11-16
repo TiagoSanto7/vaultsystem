@@ -78,3 +78,28 @@ def test_conversa_com_o_vault_i(tela, tmp_path, monkeypatch):
     assert lista["disponivel"] is True and [c["id"] for c in lista["conversas"]] == [g["conversa"]["id"], cid]
     assert cliente.delete(f"/v1/painel/conversas/{cid}").status_code == 204
     assert cliente.get(f"/v1/painel/conversas/{cid}").status_code == 404
+
+
+def test_datas_antigas_na_ordem_das_conversas_e_no_prazo(tmp_path, monkeypatch):
+    from vault_system import conversa, estado
+
+    monkeypatch.setenv("ESTADO_DIR", str(tmp_path))
+    monkeypatch.setattr(estado, "agora", lambda: "2026-11-11T00:20:00+00:00")
+    datas = [("Mais recente", "2026-11-10T20:00:00-04:00"), ("Mais antiga", "2026-11-10T23:59:00+00:00")]
+    with estado.conectar() as db:
+        for titulo, inicio in datas:
+            cid = db.execute(
+                "INSERT INTO conversas (escopo, titulo, criado_por, criado_em) VALUES ('geral', ?, 'ana', ?)",
+                (titulo, inicio),
+            ).lastrowid
+            db.execute(
+                "INSERT INTO mensagens (conversa_id, papel, texto, estado, criado_em, inicio) "
+                "VALUES (?, 'usuario', ?, 'respondendo', ?, ?)",
+                (cid, titulo, inicio, inicio),
+            )
+
+        assert [c["titulo"] for c in conversa.listar(db, "ana")] == ["Mais recente", "Mais antiga"]
+        assert conversa.responder_uma(db) is False
+        assert [tuple(m) for m in db.execute("SELECT texto, estado FROM mensagens ORDER BY id")] == [
+            ("Mais recente", "respondendo"), ("Mais antiga", "erro"),
+        ]

@@ -19,7 +19,7 @@ rodada; mudança aqui só por PR lá.
 Campos em toda nota: `sistema`, `tipo_nota`, `criado_em`, `atualizado_em`.
 Notas que vêm de um repositório também têm `origens` (caminhos no
 repositório de origem) e `commit_origem`. As datas e a origem são gravadas
-pelo código, em ISO 8601 com o fuso de Cuiabá (`2026-10-14T10:00:00-04:00`).
+pelo código, em ISO 8601. Novas datas são gravadas em UTC (`2026-10-14T14:00:00+00:00`).
 
 ## Links
 
